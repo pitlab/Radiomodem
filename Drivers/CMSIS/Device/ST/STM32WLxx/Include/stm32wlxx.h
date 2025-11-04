@@ -52,7 +52,6 @@
 #define STM32WL
 #endif /* STM32WL */
 
-
 /* Uncomment the line below according to the target STM32WL device used in your
    application
   */

@@ -60,6 +60,16 @@
 #define BW_LORA250	0x05 	//bandwidth 250 (250 kHz)
 #define BW_LORA500	0x06 	//bandwidth 500 (500 kHz)
 
+
+//definicje trybów pracy
+#define TP_SLEEP		0x1
+#define TP_STANDBY_RC	0x2	//Standby mode with RC 13 MHz
+#define TP_STANDBY_HSE	0x3	//Standby mode with HSE32
+#define TP_FS			0x4	//FS mode
+#define TP_RX			0x5	//RX mode
+#define TP_TX			0x6 //TX mode
+#define MASKA_TRYBU		0x70
+
 union u32_8_t
 {
 	uint32_t nDane32;
@@ -72,7 +82,8 @@ uint8_t UstawTrybOdbioru(uint32_t nTimeout);
 uint8_t UstawTrybNadawania(uint32_t nTimeout);
 uint8_t UstawTrybSyntezy(void);
 uint8_t UstawCzestotliwoscPLL(uint32_t nCzestotliwosc);
-uint8_t ZmierzRSSI(uint8_t* chStatus, uint8_t* chRSSI);
+uint8_t KalibrujZakresCzestotliwosci(uint16_t sCzestotliwoscDolna, uint16_t sCzestotliwoscGorna);
+uint8_t ZmierzRSSI(uint8_t* chStatus, int8_t* chRSSI);
 uint8_t UstawTypPakietu(uint8_t chTypPakietu);
 uint8_t PobierzTypPakietu(uint8_t *chStatus, uint8_t *chTypPakietu);
 uint8_t UstawMocNadajnika(uint8_t chMoc, uint8_t chCzasNarastania);
@@ -80,10 +91,16 @@ uint8_t UstawParametryNadajnika(uint8_t chWypelnienieCyklu, uint8_t HpMax, uint8
 uint8_t UstawTrybFallbaclk(uint8_t chTryb);
 uint8_t UstawAdresyBuforow(uint8_t chBufNad, uint8_t chBudOdb);
 uint8_t UstawParametryModulacjiFSK(uint8_t chSpeadingFactor, uint8_t chKsztaltImpulsu, uint8_t chSzerokoscPasma, uint32_t nOdchylCzestotliwosci);
-uint8_t PobierzStatusPakietu(uint8_t *chStatus, uint8_t *chStatusOdbioru, uint8_t *chStatusRSSISync, uint8_t *chSrednRSSI);
+uint8_t PobierzStatusPakietu(uint8_t *chStatus, uint8_t *chStatusOdbioru, int8_t *chRSSISync, int8_t *chSrednRSSI);
 uint8_t PobierzBlad(uint8_t *chStatus, uint8_t *chBlad);
+uint8_t UstawSleep(uint8_t chKonfig);
+uint8_t UstawStandby(uint8_t chKonfig);
+uint8_t PobierzStatus(uint8_t *chStatus);
+uint8_t UstawParametryPakietow(uint8_t chTryb);
+uint8_t UstawPrzerwnia(void);
 
 uint8_t SkanujPasmo(void);
+uint8_t WlaczObior(void);
 
 
 #endif /* INC_RADIO_H_ */

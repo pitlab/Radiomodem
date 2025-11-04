@@ -56,7 +56,6 @@ UART_HandleTypeDef huart1;
 static void MX_GPIO_Init(void);
 static void MX_SUBGHZ_Init(void);
 static void MX_USART1_UART_Init(void);
-static void MX_GTZC_S_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -86,9 +85,6 @@ int main(void)
   BSP_LED_Init(LED_BLUE);
   /* USER CODE END Init */
 
-  /* GTZC initialisation */
-  MX_GTZC_S_Init();
-
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
@@ -116,27 +112,6 @@ int main(void)
 	  //BSP_LED_Toggle(LED_BLUE);
   }
   /* USER CODE END 3 */
-}
-
-/**
-  * @brief GTZC_S Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_GTZC_S_Init(void)
-{
-
-  /* USER CODE BEGIN GTZC_S_Init 0 */
-
-  /* USER CODE END GTZC_S_Init 0 */
-
-  /* USER CODE BEGIN GTZC_S_Init 1 */
-
-  /* USER CODE END GTZC_S_Init 1 */
-  /* USER CODE BEGIN GTZC_S_Init 2 */
-
-  /* USER CODE END GTZC_S_Init 2 */
-
 }
 
 /**
