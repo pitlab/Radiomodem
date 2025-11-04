@@ -42,7 +42,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 COM_InitTypeDef BspCOMInit;
-static uint32_t delay = 250;
+//static uint32_t delay = 250;
 
 SUBGHZ_HandleTypeDef hsubghz;
 
@@ -105,11 +105,13 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  SkanujPasmo();
+	  //SkanujPasmo();
 
 	  //WlaczObior();
 	  //HAL_Delay(delay);
 	  //BSP_LED_Toggle(LED_BLUE);
+
+	  WyslijRamkeGFSK();
   }
   /* USER CODE END 3 */
 }

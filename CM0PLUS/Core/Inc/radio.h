@@ -25,6 +25,9 @@
 #define FALLBACK_STDBY_HSE	0x30
 #define FALLBACK_FS			0x40
 
+#define ROZMIAR_BUFORA_NADAWCZEGO	128
+#define ROZMIAR_BUFORA_ODBIORCZEGO	128
+
 //szerokość pasma
 #define BW_FSK4 	0x1F	//4.8 kHz DSB
 #define BW_FSK5 	0x17	//5.8 kHz DSB
@@ -70,12 +73,28 @@
 #define TP_TX			0x6 //TX mode
 #define MASKA_TRYBU		0x70
 
+
+//definicje bitow przerwania
+
+#define IRQ_TX_DONE		0x001	//TxDone Packet transmission finished LoRa and GFSK
+#define IRQ_RX_DONE 	0x002	//RxDone Packet reception finished LoRa and GFSK
+#define IRQ_PREAMB_DET	0x004	//PreambleDetected Preamble detected LoRa and GFSK
+#define IRQ_SYNC_DET	0x008	//SyncDetected Synchronization word valid GFSK
+#define IRQ_HEAD_VALID	0x010	//HeaderValid Header valid LoRa
+#define IRQ_HEAD_ERROR	0x020	//HeaderErr Header CRC error LoRa
+#define IRQ_CRC_ERROR	0x040	//Err preamble, syncword, address, CRC or length error GFSK lub CrcErr CRC error LoRa
+#define IRQ_CAD_DONE	0x080	//CadDone Channel activity detection finished LoRa
+#define IRQ_CAD_DETECT	0x100	//CadDetected Channel activity detected LoRa
+#define IRQ_TIMEOUT		0x200	//Timeout RX or TX timeout LoRa and GFSK
+
+
 union u32_8_t
 {
 	uint32_t nDane32;
 	uint16_t sDane16[2];
 	uint8_t chDane8[4];
 };
+
 
 
 uint8_t UstawTrybOdbioru(uint32_t nTimeout);
@@ -90,17 +109,17 @@ uint8_t UstawMocNadajnika(uint8_t chMoc, uint8_t chCzasNarastania);
 uint8_t UstawParametryNadajnika(uint8_t chWypelnienieCyklu, uint8_t HpMax, uint8_t chZakresMocy);
 uint8_t UstawTrybFallbaclk(uint8_t chTryb);
 uint8_t UstawAdresyBuforow(uint8_t chBufNad, uint8_t chBudOdb);
-uint8_t UstawParametryModulacjiFSK(uint8_t chSpeadingFactor, uint8_t chKsztaltImpulsu, uint8_t chSzerokoscPasma, uint32_t nOdchylCzestotliwosci);
+uint8_t UstawParametryModulacjiFSK(uint32_t nPredkoscBit, uint8_t chKsztaltImpulsu, uint8_t chSzerokoscPasma, uint32_t nOdchylCzestotliwosci);
+uint8_t UstawParametryModulacjiLoRa(uint32_t nPredkoscBit, uint8_t chKsztaltImpulsu, uint8_t chSzerokoscPasma, uint32_t nOdchylCzestotliwosci);
 uint8_t PobierzStatusPakietu(uint8_t *chStatus, uint8_t *chStatusOdbioru, int8_t *chRSSISync, int8_t *chSrednRSSI);
 uint8_t PobierzBlad(uint8_t *chStatus, uint8_t *chBlad);
 uint8_t UstawSleep(uint8_t chKonfig);
 uint8_t UstawStandby(uint8_t chKonfig);
 uint8_t PobierzStatus(uint8_t *chStatus);
-uint8_t UstawParametryPakietow(uint8_t chTryb);
-uint8_t UstawPrzerwnia(void);
-
+uint8_t UstawPrzerwnie(uint16_t sGlobalEnable, uint16_t sIRQ1En, uint16_t sIRQ2En, uint16_t sIRQ3En);
+uint8_t KasujPrzerwnie(uint16_t sPrzerwanie);
 uint8_t SkanujPasmo(void);
 uint8_t WlaczObior(void);
-
+uint8_t WyslijRamkeGFSK(void);
 
 #endif /* INC_RADIO_H_ */

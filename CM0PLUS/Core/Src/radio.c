@@ -13,7 +13,10 @@
 extern SUBGHZ_HandleTypeDef hsubghz;
 extern UART_HandleTypeDef huart1;
 uint8_t chTest;
-
+uint8_t chLicznikRamek;
+uint8_t chBuforUart[90];
+uint8_t chBuforNadawczy[ROZMIAR_BUFORA_NADAWCZEGO];
+uint8_t chBuforOdbiorczy[ROZMIAR_BUFORA_ODBIORCZEGO];
 
 //////////////////////////////////////////////////////////////////////////////////
 // Callback zakończonego nadawania
@@ -367,19 +370,23 @@ uint8_t UstawAdresyBuforow(uint8_t chBufNad, uint8_t chBudOdb)
 //////////////////////////////////////////////////////////////////////////////////
 // ustawia parametry modulacji (G)FSK. Musi być poprzedzone funkcją: UstawTypPakietu()
 // Parametry:
-//	chSpeadingFactor - określa liczbę bitów na symbol z zakresu 5..12
+//	nPredkoscBit - określa prędkość transmisji
 //	chKsztaltImpulsu - wartość filtra kstałtujacego impulsy: 0=bez filtra, 8=Gaussian BT 0.3; 9=Gaussian BT 0.5; 10=Gaussian BT 0.7; 11=Gaussian BT 1.0;
 //	chSzerokoscPasma - patrz definicje stałych: BW4..BW467
 //	nOdchylCzestotliwosci - Frequency deviation x 225 / 32 MHz
 // Zwraca: kod błędu
 //////////////////////////////////////////////////////////////////////////////////
-uint8_t UstawParametryModulacjiFSK(uint8_t chSpeadingFactor, uint8_t chKsztaltImpulsu, uint8_t chSzerokoscPasma, uint32_t nOdchylCzestotliwosci)
+uint8_t UstawParametryModulacjiFSK(uint32_t nPredkoscBit, uint8_t chKsztaltImpulsu, uint8_t chSzerokoscPasma, uint32_t nOdchylCzestotliwosci)
 {
 	HAL_StatusTypeDef chErr;
-	uint8_t chBuforDanych[4];
+	uint8_t chBuforDanych[7];
 	union u32_8_t Unia32_8;
 
-	chBuforDanych[0] = chSpeadingFactor & 0x0F;
+	Unia32_8.nDane32 = nPredkoscBit & 0xFFFFFF;
+	for (uint8_t n=0; n<3; n++)
+		chBuforDanych[n] = Unia32_8.chDane8[n];
+
+	chBuforDanych[3] = chKsztaltImpulsu & 0x0F;
 	chBuforDanych[4] = chSzerokoscPasma;
 	Unia32_8.nDane32 = nOdchylCzestotliwosci & 0xFFFFFF;
 	for (uint8_t n=0; n<3; n++)
@@ -568,62 +575,39 @@ uint8_t UstawParametryPakietow(uint8_t chTryb)
 // Parametry: na razie nic
 // Zwraca: kod błędu
 //////////////////////////////////////////////////////////////////////////////////
-uint8_t UstawPrzerwnia(void)
+uint8_t UstawPrzerwnie(uint16_t sGlobalEnable, uint16_t sIRQ1En, uint16_t sIRQ2En, uint16_t sIRQ3En)
 {
 	HAL_StatusTypeDef chErr;
 	uint8_t chKonfig[8] = {0};
 
 	//bytes 2:1 bits 15:0 IrqMask[15:0]
 	//Global interrupt enable See Table 37 for interrupt bit map definition. For each bit: 0: IRQ disabled, 1: IRQ enabled
-	chKonfig[0] = 	(1 << 0)|	//TxDone Packet transmission finished LoRa and GFSK
-					(1 << 1)|	//RxDone Packet reception finished LoRa and GFSK
-					(1 << 2)|	//PreambleDetected Preamble detected LoRa and GFSK
-					(1 << 3)|	//SyncDetected Synchronization word valid GFSK
-					(1 << 4)|	//HeaderValid Header valid LoRa
-					(1 << 5)|	//HeaderErr Header CRC error LoRa
-					(1 << 6)|	//Err preamble, syncword, address, CRC or length error GFSK lub CrcErr CRC error LoRa
-					(1 << 7);	//CadDone Channel activity detection finished LoRa
-	chKonfig[1] = 	(1 << 0)|	//CadDetected Channel activity detected LoRa
-					(1 << 1);	//Timeout RX or TX timeout LoRa and GFSK
-
-	//Irq1Mask[15:0]: IRQ1 line Interrupt enable
-	chKonfig[2] = 	(1 << 0)|	//TxDone Packet transmission finished LoRa and GFSK
-					(0 << 1)|	//RxDone Packet reception finished LoRa and GFSK
-					(1 << 2)|	//PreambleDetected Preamble detected LoRa and GFSK
-					(1 << 3)|	//SyncDetected Synchronization word valid GFSK
-					(0 << 4)|	//HeaderValid Header valid LoRa
-					(0 << 5)|	//HeaderErr Header CRC error LoRa
-					(0 << 6)|	//Err preamble, syncword, address, CRC or length error GFSK lub CrcErr CRC error LoRa
-					(0 << 7);	//CadDone Channel activity detection finished LoRa
-	chKonfig[3] = 	(0 << 0)|	//CadDetected Channel activity detected LoRa
-					(0 << 1);	//Timeout RX or TX timeout LoRa and GFSK
-
-	//Irq2Mask[15:0]: IRQ2 line Interrupt enable
-	chKonfig[4] = 	(0 << 0)|	//TxDone Packet transmission finished LoRa and GFSK
-					(1 << 1)|	//RxDone Packet reception finished LoRa and GFSK
-					(0 << 2)|	//PreambleDetected Preamble detected LoRa and GFSK
-					(0 << 3)|	//SyncDetected Synchronization word valid GFSK
-					(1 << 4)|	//HeaderValid Header valid LoRa
-					(0 << 5)|	//HeaderErr Header CRC error LoRa
-					(0 << 6)|	//Err preamble, syncword, address, CRC or length error GFSK lub CrcErr CRC error LoRa
-					(1 << 7);	//CadDone Channel activity detection finished LoRa
-	chKonfig[5] = 	(1 << 0)|	//CadDetected Channel activity detected LoRa
-					(0 << 1);	//Timeout RX or TX timeout LoRa and GFSK
-
-	//Irq3Mask[15:0]: IRQ3 line Interrupt enable
-	chKonfig[6] = 	(0 << 0)|	//TxDone Packet transmission finished LoRa and GFSK
-					(0 << 1)|	//RxDone Packet reception finished LoRa and GFSK
-					(0 << 2)|	//PreambleDetected Preamble detected LoRa and GFSK
-					(0 << 3)|	//SyncDetected Synchronization word valid GFSK
-					(0 << 4)|	//HeaderValid Header valid LoRa
-					(1 << 5)|	//HeaderErr Header CRC error LoRa
-					(1 << 6)|	//Err preamble, syncword, address, CRC or length error GFSK lub CrcErr CRC error LoRa
-					(0 << 7);	//CadDone Channel activity detection finished LoRa
-	chKonfig[7] = 	(0 << 0)|	//CadDetected Channel activity detected LoRa
-					(1 << 1);	//Timeout RX or TX timeout LoRa and GFSK
-
+	chKonfig[0] = sGlobalEnable;
+	chKonfig[1] = (sGlobalEnable >> 8);
+	chKonfig[2] = sIRQ1En;
+	chKonfig[3] = (sIRQ1En >> 8);
+	chKonfig[4] = sIRQ2En;
+	chKonfig[5] = (sIRQ2En >> 8);
+	chKonfig[6] = sIRQ3En;
+	chKonfig[7] = (sIRQ3En >> 8);
 	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_CFG_DIOIRQ, chKonfig, 8);
 	return chErr;
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////////
+// kasuje flagę aktywnego przerwania
+// Parametry: sPrzerwanie - bit przerwania
+// Zwraca: kod błędu
+//////////////////////////////////////////////////////////////////////////////////
+uint8_t KasujPrzerwnie(uint16_t sPrzerwanie)
+{
+	uint8_t chKonfig[8] = {0};
+
+	chKonfig[0] = sPrzerwanie;
+	chKonfig[1] = (sPrzerwanie >> 8);
+	return HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_CFG_DIOIRQ, chKonfig, 2);
 }
 
 
@@ -647,7 +631,7 @@ uint8_t SkanujPasmo(void)
 
 	chErr = UstawSleep(0);	//b0=0 Sub-GHz radio RTC wake-up disabled, b2=0 cold startup when exiting Sleep mode, configuration registers reset
 	chErr = UstawStandby(0);
-	chErr = UstawPrzerwnia();
+	chErr = UstawPrzerwnie(IRQ_RX_DONE + IRQ_TIMEOUT + IRQ_CAD_DETECT, IRQ_RX_DONE, IRQ_TIMEOUT, IRQ_CAD_DETECT);
 	chErr = KalibrujZakresCzestotliwosci(400, 800);
 
 	//chErr = UstawTrybFallbaclk(FALLBACK_STDBY_HSE);	//tryb standby z właczonym HSE
@@ -700,7 +684,7 @@ uint8_t WlaczObior(void)
 	int8_t chRssi;
 	int8_t chRssiPakietu;
 	int8_t chRssiSync;
-	uint8_t chBuforUart[90];
+
 	uint8_t chStatus;
 	uint16_t sRozmiar;
 	uint8_t chStatusOdbioru;
@@ -729,7 +713,7 @@ uint8_t WlaczObior(void)
 	chErr = UstawParametryModulacjiFSK(6, 9, BW_FSK467, 1000000);
 
 	//7. Enable RxDone and timeout interrupts by configuring IRQ with Cfg_DioIrq().
-	chErr = UstawPrzerwnia();
+	chErr = UstawPrzerwnie(IRQ_RX_DONE + IRQ_TIMEOUT + IRQ_CAD_DETECT, IRQ_RX_DONE, IRQ_TIMEOUT, IRQ_CAD_DETECT);
 
 	//8. Start the receiver by setting the sub-GHz radio in RX mode with Set_Rx():
 	//– When in continuous receiver mode, the sub-GHz radio remains in RX mode to look for packets until stopped with Set_Standby().
@@ -742,8 +726,10 @@ uint8_t WlaczObior(void)
 	//– Check received packet error status (header error, crc error) with Get_IrqStatus().
 	//– When a valid packet is received, read the receive start buffer pointer and received	payload length with Get_RxBufferStatus().
 	//– Read the received payload data from the receive data buffer with Read_Buffer().
+	chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, 0, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);
 	//b) On a timeout interrupt, the reception is timed out.
 	//10. Clear interrupts with Clr_IrqStatus().
+	chErr = KasujPrzerwnie(IRQ_RX_DONE + IRQ_TIMEOUT + IRQ_CAD_DETECT);
 	//11. Optionally, send a Set_Sleep() command to force the sub-GHz radio in Sleep mode.
 
 	HAL_Delay(100);
@@ -753,4 +739,71 @@ uint8_t WlaczObior(void)
 	sRozmiar = sprintf((char*)chBuforUart, "RSSI @ 868 MHz: %d dBm, RSync:%d, Status: 0x%.2X, RSSI Pakietu: %d\r\n", chRssi, chRssiSync, chStatus, chRssiPakietu);
 	chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
 	return ERR_OK;
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////////
+// okresowo wysyła ramkę GFSK danych aby sprawdzić czy działa nadajnik
+// Parametry: nic
+// Zwraca: kod błędu
+//////////////////////////////////////////////////////////////////////////////////
+uint8_t WyslijRamkeGFSK(void)
+{
+	uint16_t sRozmiar;
+	uint8_t chErr;
+
+	//str 204
+	//The sub-GHz radio can be set in LoRa, (G)MSK or (G)FSK transmit operation mode with the following steps:
+	//1. Define the location of the transmit payload data in the data buffer, with Set_BufferBaseAddress().
+	chErr = UstawAdresyBuforow(ROZMIAR_BUFORA_ODBIORCZEGO, 0x00);	//(Tx, Rx)
+
+	//2. Write the payload data to the transmit data buffer with Write_Buffer().
+	for (uint8_t n=0; n<ROZMIAR_BUFORA_NADAWCZEGO; n++)
+		chBuforNadawczy[n] = n;
+	chErr |= HAL_SUBGHZ_WriteBuffer(&hsubghz, 0, chBuforNadawczy, ROZMIAR_BUFORA_NADAWCZEGO);
+	chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, 0, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);
+
+	//3. Select the packet type (generic or LoRa) with Set_PacketType().
+	chErr |= UstawTypPakietu(PAKIET_FSK);
+
+	//4. Define the frame format with Set_PacketParams().
+	chErr |= UstawParametryPakietow(0);
+
+	//5. Define synchronization word in the associated packet type SUBGHZ_xSYNCR(n) with Write_Register().
+	for (int8_t n=0; n<8; n++)
+		chBuforUart[n] = 0x55;
+	chErr |= HAL_SUBGHZ_WriteRegisters(&hsubghz, 0x6C0, chBuforUart, 8);	//SUBGHZ_GSYNCR0
+
+	//6. Define the RF frequency with Set_RfFrequency().
+	chErr |= UstawCzestotliwoscPLL(868000000 + chLicznikRamek);
+
+	//7. Define the PA configuration with Set_PaConfig().
+	//chErr = UstawParametryNadajnika(1, 0, 1);	//tabela str184 moc: +10dBm
+	chErr |= UstawParametryNadajnika(7, 0, 1);	//tabela str184 moc: +15dBm
+
+	//8. Define the PA output power and ramping with Set_TxParams().
+	chErr |= UstawMocNadajnika(0x0E, 4);
+
+	//9. Define the modulation parameters with Set_ModulationParams().
+	chErr |= UstawParametryModulacjiFSK(100000, 9, 0x09, 0xFF);	//100kbps, środkowy shaping, max pasmo, dewiacja od czapy
+
+	//10. Enable TxDone and timeout interrupts by configuring IRQ with Cfg_DioIrq().
+	chErr |= UstawPrzerwnie(IRQ_TX_DONE + IRQ_TIMEOUT + IRQ_SYNC_DET, IRQ_TX_DONE, IRQ_TIMEOUT, IRQ_SYNC_DET);
+
+	//11. Start the transmission by setting the sub-GHz radio in TX mode with Set_Tx(). After the transmission is finished, the sub-GHz radio enters automatically the Standby mode.
+	chErr |= UstawTrybNadawania(10000);	//timeout
+
+	//12. Wait for sub-GHz radio IRQ interrupt and read interrupt status with Get_IrqStatus():
+	//a) On a TxDone interrupt, the packet is successfully sent
+	//b) On a timeout interrupt, the transmission is timeout.
+	sRozmiar = sprintf((char*)chBuforUart, "Wyslano ramke %d\r\n", chLicznikRamek++);
+	chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
+	HAL_Delay(50);
+	BSP_LED_Toggle(LED_BLUE);
+	//13. Clear interrupt with Clr_IrqStatus().
+	chErr |= KasujPrzerwnie(IRQ_TX_DONE + IRQ_TIMEOUT + IRQ_SYNC_DET);
+	//14. Optionally, send a Set_Sleep() command to force the sub-GHz radio in Sleep mode.
+	chErr |= UstawSleep(0);
+	return chErr;
 }
