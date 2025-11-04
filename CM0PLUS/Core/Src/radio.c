@@ -12,7 +12,7 @@
 
 extern SUBGHZ_HandleTypeDef hsubghz;
 extern UART_HandleTypeDef huart1;
-
+uint8_t chTest;
 
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -30,47 +30,47 @@ void HAL_SUBGHZ_TxCpltCallback(SUBGHZ_HandleTypeDef *hsubghz)
 //////////////////////////////////////////////////////////////////////////////////
 void HAL_SUBGHZ_RxCpltCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
-
+	chTest = 0;
 }
 
 void HAL_SUBGHZ_PreambleDetectedCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
-
+	chTest = 1;
 }
 
 void HAL_SUBGHZ_SyncWordValidCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
-
+	chTest = 2;
 }
 
 void HAL_SUBGHZ_HeaderValidCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
-
+	chTest = 3;
 }
 
 void HAL_SUBGHZ_HeaderErrorCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
-
+	chTest = 4;
 }
 
 void HAL_SUBGHZ_CRCErrorCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
-
+	chTest = 5;
 }
 
 void HAL_SUBGHZ_CADStatusCallback(SUBGHZ_HandleTypeDef *hsubghz, HAL_SUBGHZ_CadStatusTypeDef cadstatus)
 {
-
+	chTest = 6;
 }
 
 void HAL_SUBGHZ_RxTxTimeoutCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
-
+	chTest = 7;
 }
 
 void HAL_SUBGHZ_LrFhssHopCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
-
+	chTest = 8;
 }
 
 
@@ -94,9 +94,22 @@ uint8_t UstawTrybOdbioru(uint32_t nTimeout)
 {
 	HAL_StatusTypeDef chErr;
 	union u32_8_t Unia32_8;
+	uint8_t chStatus;
+	uint8_t chLicznikTimeoutu = 100;
 
 	Unia32_8.nDane32 = (uint32_t)(nTimeout / 15.625) & 0xFFFFFF;
-	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_RX, Unia32_8.chDane8, 3);	//sprawdzić czy unia dobrze się przelicza
+	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_RX, Unia32_8.chDane8, 3);
+
+	//sprawdź czy wszedł w tryb odbioru
+	do
+	{
+		chErr = PobierzStatus(&chStatus);
+		chLicznikTimeoutu--;
+	}
+	while ((((chStatus & MASKA_TRYBU) >> 4) != TP_RX) && (chLicznikTimeoutu));
+
+	if (chLicznikTimeoutu)
+		chErr = ERR_TIMEOUT;
 	return chErr;
 }
 
@@ -111,11 +124,25 @@ uint8_t UstawTrybNadawania(uint32_t nTimeout)
 {
 	HAL_StatusTypeDef chErr;
 	union u32_8_t Unia32_8;
+	uint8_t chStatus;
+	uint8_t chLicznikTimeoutu = 100;
 
 	Unia32_8.nDane32 = (uint32_t)(nTimeout / 15.625);
 	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_TX, Unia32_8.chDane8, 3);	//sprawdzić czy unia dobrze się przelicza
+
+	//sprawdź czy wszedł w tryb nadawania
+	do
+	{
+		chErr = PobierzStatus(&chStatus);
+		chLicznikTimeoutu--;
+	}
+	while ((((chStatus & MASKA_TRYBU) >> 4) != TP_TX) && (chLicznikTimeoutu));
+
+	if (chLicznikTimeoutu)
+		chErr = ERR_TIMEOUT;
 	return chErr;
 }
+
 
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -127,8 +154,21 @@ uint8_t UstawTrybSyntezy(void)
 {
 	HAL_StatusTypeDef chErr;
 	uint8_t chBuforPolecen;
+	uint8_t chStatus;
+	uint8_t chLicznikTimeoutu = 100;
 
 	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_FS, &chBuforPolecen, 0);
+
+	//sprawdź czy wszedł w tryb syntezy
+	do
+	{
+		chErr = PobierzStatus(&chStatus);
+		chLicznikTimeoutu--;
+	}
+	while ((((chStatus & MASKA_TRYBU) >> 4) != TP_FS) && (chLicznikTimeoutu));
+
+	if (chLicznikTimeoutu)
+		chErr = ERR_TIMEOUT;
 	return chErr;
 }
 
@@ -159,13 +199,34 @@ uint8_t UstawCzestotliwoscPLL(uint32_t nCzestotliwosc)
 
 
 //////////////////////////////////////////////////////////////////////////////////
+// Wykonuje kalibrację dla podanego zakresu częstotliwości
+// Parametry: sCzestotliwoscDolna, sCzestotliwoscGorna - zakres częstotliwości do kalibracji [MHz]
+// Zwraca: kod błędu
+//////////////////////////////////////////////////////////////////////////////////
+uint8_t KalibrujZakresCzestotliwosci(uint16_t sCzestotliwoscDolna, uint16_t sCzestotliwoscGorna)
+{
+	HAL_StatusTypeDef chErr;
+	uint8_t chBuforDanych[2];
+
+	if (sCzestotliwoscDolna > sCzestotliwoscGorna)
+		return ERR_PARAMETRY;
+
+	chBuforDanych[0] = (sCzestotliwoscDolna >> 2) & 0xFF;
+	chBuforDanych[1] = (sCzestotliwoscGorna >> 2) & 0xFF;
+	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_CALIBRATEIMAGE, chBuforDanych, 2);
+	return chErr;
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////////
 // Mierzy wartość SSI gdy jest w trybie odbioru
 // Parametry:
 //	*chStatus - wskaźnik na status radia
-//	*chRSSI - wskaźnik na zwracaną wartość zmierzonego RSSI
+//	*chRSSI - wskaźnik na wartość ze zanakiem zmierzonego RSSI [dB]
 // Zwraca: kod błędu
 //////////////////////////////////////////////////////////////////////////////////
-uint8_t ZmierzRSSI(uint8_t* chStatus, uint8_t* chRSSI)
+uint8_t ZmierzRSSI(uint8_t* chStatus, int8_t* chRSSI)
 {
 	HAL_StatusTypeDef chErr;
 	uint8_t chBuforDanych[2] = {0};
@@ -175,7 +236,9 @@ uint8_t ZmierzRSSI(uint8_t* chStatus, uint8_t* chRSSI)
 	if (chErr == ERR_OK)
 	{
 		*chStatus = chBuforDanych[1];
-		*chRSSI = chBuforDanych[0];
+		*chRSSI = (int8_t)chBuforDanych[0] / (-2);
+		/*chStatus = chBuforDanych[0];
+		*chRSSI = (int8_t)chBuforDanych[1] / (-2);*/
 	}
 	return chErr;
 }
@@ -383,10 +446,12 @@ uint8_t PobierzBlad(uint8_t *chStatus, uint8_t *chBlad)
 // Pobiera informacje o statusie pakietów danych
 // Parametry:
 //	*chStatus - wskaźnik na status radia
-//	*chBlad - wskaźnik na błąd
+//	*chStatusOdbioru
+//	*chRSSISync - wskaźnik na RSSI podczas synchronizacji
+//	*chSrednRSSI - wskaxnik na srednie RSSI poczas odbioru pakietu
 // Zwraca: kod błędu
 //////////////////////////////////////////////////////////////////////////////////
-uint8_t PobierzStatusPakietu(uint8_t *chStatus, uint8_t *chStatusOdbioru, uint8_t *chStatusRSSISync, uint8_t *chSrednRSSI)
+uint8_t PobierzStatusPakietu(uint8_t *chStatus, uint8_t *chStatusOdbioru, int8_t *chRSSISync, int8_t *chSrednRSSI)
 {
 	HAL_StatusTypeDef chErr;
 	uint8_t chBuforDanych[4] = {0};
@@ -394,11 +459,170 @@ uint8_t PobierzStatusPakietu(uint8_t *chStatus, uint8_t *chStatusOdbioru, uint8_
 	chErr =  HAL_SUBGHZ_ExecGetCmd(&hsubghz, RADIO_GET_PACKETSTATUS, chBuforDanych, 4);
 	if (chErr == ERR_OK)
 	{
-		*chSrednRSSI = chBuforDanych[0];
-		*chStatusRSSISync = chBuforDanych[1];
-		*chStatus = chBuforDanych[2];
-		*chStatusOdbioru = chBuforDanych[3];
+		/*chSrednRSSI = (int8_t)chBuforDanych[0] / -2;
+		*chRSSISync = (int8_t)chBuforDanych[1] / -2;
+		*chStatusOdbioru = chBuforDanych[2];
+		*chStatus = chBuforDanych[3];*/
+
+		*chStatus = (int8_t)chBuforDanych[0];
+		*chStatusOdbioru = (int8_t)chBuforDanych[1];
+		*chRSSISync = chBuforDanych[2] / -2;
+		*chSrednRSSI = chBuforDanych[3] / -2;
 	}
+	return chErr;
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////////
+// Pobiera informacje o statusie pakietów danych
+// Parametry:
+//	*chStatus - wskaźnik na status radia
+// Zwraca: kod błędu
+//////////////////////////////////////////////////////////////////////////////////
+uint8_t PobierzStatus(uint8_t *chStatus)
+{
+	HAL_StatusTypeDef chErr;
+
+	*chStatus = 0;
+	chErr =  HAL_SUBGHZ_ExecGetCmd(&hsubghz, RADIO_GET_STATUS, chStatus, 1);
+	return chErr;
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////////
+// Pobiera informacje o statusie pakietów danych
+// Parametry:
+//	chKonfig - b0=0 Sub-GHz radio RTC wake-up disabled, b2=0 cold startup when exiting Sleep mode, configuration registers reset
+// Zwraca: kod błędu
+//////////////////////////////////////////////////////////////////////////////////
+uint8_t UstawSleep(uint8_t chKonfig)
+{
+	HAL_StatusTypeDef chErr;
+
+	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_SLEEP, &chKonfig, 1);
+	return chErr;
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////////
+// Ustawia tryb pracy
+// Parametry:
+//	chKonfig - 0: RC 13 MHz used in Standby mode, 1: HSE32 used in Standby mode (Standby with HSE32)
+// Zwraca: kod błędu
+//////////////////////////////////////////////////////////////////////////////////
+uint8_t UstawStandby(uint8_t chKonfig)
+{
+	HAL_StatusTypeDef chErr;
+	uint8_t chStatus;
+	uint8_t chLicznikTimeoutu = 100;
+
+	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_STANDBY, &chKonfig, 1);
+
+	//sprawdź czy raio weszło w standby
+	do
+	{
+		chErr = PobierzStatus(&chStatus);
+		chLicznikTimeoutu--;
+	}
+	while ((((chStatus & MASKA_TRYBU) >> 4) != TP_STANDBY_RC) && (chLicznikTimeoutu));	//czy jest w trybie: 0x2: Standby mode with RC 13 MHz
+
+	if (chLicznikTimeoutu)
+		chErr = ERR_TIMEOUT;
+	return chErr;
+}
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////
+// Ustawia parametry pakietów
+// Parametry: na razie nic
+// Zwraca: kod błędu
+//////////////////////////////////////////////////////////////////////////////////
+uint8_t UstawParametryPakietow(uint8_t chTryb)
+{
+	HAL_StatusTypeDef chErr;
+	uint8_t chKonfig[8] = {0};
+
+	chKonfig[0] = 15;	//bytes 2:1 bits 15:0 PbLength[15:0]: Preamble length in number of symbols
+	chKonfig[1] = 0;
+	chKonfig[2] = 0;	//bits 2:0 PbDetLength[2:0]: Preamble detection length in number of bit symbols: 0x0: preamble detection disabled, 0x4: 8-bit preamble detection, 0x5: 16-bit preamble detection, 0x6: 24-bit preamble detection, 0x7: 32-bit preamble detection
+	chKonfig[3] = 0;	//bits: 6:0 SyncWordLength[6:0]: Synchronization word length in number of bit symbols: 0x00 - 0x40: 0 to 64-bit synchronization word (synchronization word data defined in SUBGHZ_GSYNCR[0:7])
+	chKonfig[4] = 0;	//bits: 1:0 AddrComp[1:0]: Address comparison/filtering, 0x0: address comparison/filtering disabled, 0x1: address comparison/filtering on node address, 0x2: address comparison/filtering on node and broadcast addresses
+	chKonfig[5] = 1;	//bit 0 PktType: Packet type definition: 0: Fixed payload length and header field not added to packet, 1: Variable payload length and header field added to packet
+	chKonfig[6] = 20;	//bits 7:0 PayloadLength[7:0]: Payload length in number of bytes 0x00- 0xFF: 0 to 255 bytes
+	chKonfig[7] = 1;	//bits 2:0 CrcType[2:0]: CRC type definition The CRC initialization value is provided in SUBGHZ_GCRCINIRL and SUBGHZ_GCRCINIRH. The polynomial is defined in SUBGHZ_GCRCPOLRL and SUBGHZ_GCRCPOLRH.
+						//0x0: 1-byte CRC, 0x1: no CRC, 0x2: 2-byte CRC, 0x4: 1-byte inverted CRC, 0x6: 2-byte inverted CRC
+	chKonfig[8] = 0;	//bit 0 Whitening: Whitening enable. The whitening initial value is provided in WHITEINI[8:0]: 0: Whitening disabled, 1: Whitening enabled
+	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_PACKETPARAMS, chKonfig, 8);
+	return chErr;
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////////
+// Ustawia parametry pakietów
+// Parametry: na razie nic
+// Zwraca: kod błędu
+//////////////////////////////////////////////////////////////////////////////////
+uint8_t UstawPrzerwnia(void)
+{
+	HAL_StatusTypeDef chErr;
+	uint8_t chKonfig[8] = {0};
+
+	//bytes 2:1 bits 15:0 IrqMask[15:0]
+	//Global interrupt enable See Table 37 for interrupt bit map definition. For each bit: 0: IRQ disabled, 1: IRQ enabled
+	chKonfig[0] = 	(1 << 0)|	//TxDone Packet transmission finished LoRa and GFSK
+					(1 << 1)|	//RxDone Packet reception finished LoRa and GFSK
+					(1 << 2)|	//PreambleDetected Preamble detected LoRa and GFSK
+					(1 << 3)|	//SyncDetected Synchronization word valid GFSK
+					(1 << 4)|	//HeaderValid Header valid LoRa
+					(1 << 5)|	//HeaderErr Header CRC error LoRa
+					(1 << 6)|	//Err preamble, syncword, address, CRC or length error GFSK lub CrcErr CRC error LoRa
+					(1 << 7);	//CadDone Channel activity detection finished LoRa
+	chKonfig[1] = 	(1 << 0)|	//CadDetected Channel activity detected LoRa
+					(1 << 1);	//Timeout RX or TX timeout LoRa and GFSK
+
+	//Irq1Mask[15:0]: IRQ1 line Interrupt enable
+	chKonfig[2] = 	(1 << 0)|	//TxDone Packet transmission finished LoRa and GFSK
+					(0 << 1)|	//RxDone Packet reception finished LoRa and GFSK
+					(1 << 2)|	//PreambleDetected Preamble detected LoRa and GFSK
+					(1 << 3)|	//SyncDetected Synchronization word valid GFSK
+					(0 << 4)|	//HeaderValid Header valid LoRa
+					(0 << 5)|	//HeaderErr Header CRC error LoRa
+					(0 << 6)|	//Err preamble, syncword, address, CRC or length error GFSK lub CrcErr CRC error LoRa
+					(0 << 7);	//CadDone Channel activity detection finished LoRa
+	chKonfig[3] = 	(0 << 0)|	//CadDetected Channel activity detected LoRa
+					(0 << 1);	//Timeout RX or TX timeout LoRa and GFSK
+
+	//Irq2Mask[15:0]: IRQ2 line Interrupt enable
+	chKonfig[4] = 	(0 << 0)|	//TxDone Packet transmission finished LoRa and GFSK
+					(1 << 1)|	//RxDone Packet reception finished LoRa and GFSK
+					(0 << 2)|	//PreambleDetected Preamble detected LoRa and GFSK
+					(0 << 3)|	//SyncDetected Synchronization word valid GFSK
+					(1 << 4)|	//HeaderValid Header valid LoRa
+					(0 << 5)|	//HeaderErr Header CRC error LoRa
+					(0 << 6)|	//Err preamble, syncword, address, CRC or length error GFSK lub CrcErr CRC error LoRa
+					(1 << 7);	//CadDone Channel activity detection finished LoRa
+	chKonfig[5] = 	(1 << 0)|	//CadDetected Channel activity detected LoRa
+					(0 << 1);	//Timeout RX or TX timeout LoRa and GFSK
+
+	//Irq3Mask[15:0]: IRQ3 line Interrupt enable
+	chKonfig[6] = 	(0 << 0)|	//TxDone Packet transmission finished LoRa and GFSK
+					(0 << 1)|	//RxDone Packet reception finished LoRa and GFSK
+					(0 << 2)|	//PreambleDetected Preamble detected LoRa and GFSK
+					(0 << 3)|	//SyncDetected Synchronization word valid GFSK
+					(0 << 4)|	//HeaderValid Header valid LoRa
+					(1 << 5)|	//HeaderErr Header CRC error LoRa
+					(1 << 6)|	//Err preamble, syncword, address, CRC or length error GFSK lub CrcErr CRC error LoRa
+					(0 << 7);	//CadDone Channel activity detection finished LoRa
+	chKonfig[7] = 	(0 << 0)|	//CadDetected Channel activity detected LoRa
+					(1 << 1);	//Timeout RX or TX timeout LoRa and GFSK
+
+	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_CFG_DIOIRQ, chKonfig, 8);
 	return chErr;
 }
 
@@ -412,40 +636,121 @@ uint8_t PobierzStatusPakietu(uint8_t *chStatus, uint8_t *chStatusOdbioru, uint8_
 uint8_t SkanujPasmo(void)
 {
 	HAL_StatusTypeDef chErr = ERR_OK;
-	uint8_t chRssi[ROZMIAR_BUF_RSSI];
-	uint8_t chBuforUart[60];
-	uint8_t chStatus;
+	//uint8_t chRssi[ROZMIAR_BUF_RSSI];
+	int8_t chRssi;
+	int8_t chRssiPakietu;
+	int8_t chRssiSync;
+	uint8_t chBuforUart[120];
+	uint8_t chStatus1, chStatus2, chStatus3;
 	uint16_t sRozmiar;
 	uint8_t chStatusOdbioru;
-	uint8_t chStatusRSSISync;
 
-	chErr = UstawTrybFallbaclk(FALLBACK_STDBY_HSE);	//tryb standby z właczonym HSE
+	chErr = UstawSleep(0);	//b0=0 Sub-GHz radio RTC wake-up disabled, b2=0 cold startup when exiting Sleep mode, configuration registers reset
+	chErr = UstawStandby(0);
+	chErr = UstawPrzerwnia();
+	chErr = KalibrujZakresCzestotliwosci(400, 800);
+
+	//chErr = UstawTrybFallbaclk(FALLBACK_STDBY_HSE);	//tryb standby z właczonym HSE
+
 	chErr = UstawTypPakietu(PAKIET_LORA);
-	chErr = PobierzTypPakietu(&chRssi[0], &chRssi[1]);	//sprawdź czy się zapisało
 
-	chErr |= UstawCzestotliwoscPLL(868000000);
 
-	//dziele pasmo 150-960 MHz na kawałki po 10MHz
-	for (uint16_t n=0; n<ROZMIAR_BUF_RSSI; n++)
+	//chErr = PobierzTypPakietu(&chRssi[0], &chRssi[1]);	//sprawdź czy się zapisało
+	//chErr |= UstawCzestotliwoscPLL(868000000);
+
+	sRozmiar = sprintf((char*)chBuforUart, "Skaner radiowy 850 - 900 MHz\r\n");
+	//sRozmiar = sprintf((char*)chBuforUart, "Skaner radiowy 400 - 450 MHz\r\n");
+	chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
+
+	//dziele pasmo 850-900 MHz na 50 kawałków po 1 MHz
+	for (uint16_t n=0; n<50; n++)
 	{
-		chErr |= UstawCzestotliwoscPLL(150000000 + n * 10000000);
+		chErr = UstawStandby(0);
+
+		chErr |= UstawCzestotliwoscPLL(850000000 + n * 1000000);
+		//chErr |= UstawCzestotliwoscPLL(400000000 + n * 1000000);
 		chErr |= UstawTrybSyntezy();
 
-		chErr = PobierzTypPakietu(&chRssi[0], &chRssi[1]);	//sprawdź czy się zapisało
-
-		chErr = PobierzBlad(&chStatus, &chRssi[3]);
-
 		BSP_LED_Toggle(LED_BLUE);
-		chErr |= UstawTrybOdbioru(0);	//timeout [us]
-		HAL_Delay(200);
-		chErr |= ZmierzRSSI(&chStatus, &chRssi[n]);
-		chErr = PobierzStatusPakietu(&chStatus, &chRssi[n], &chStatusRSSISync, &chStatusOdbioru);
-		sRozmiar = sprintf((char*)chBuforUart, "RSSI @ %d MHz: %d dBm, RSSI Sync:%d, Status: %X\r\n", 150 + n * 10, (int8_t)chRssi[n] / (-2), chStatusRSSISync, chStatusOdbioru);
-		chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
+		chErr |= UstawTrybOdbioru(1000);	//timeout [us]
 
+		HAL_Delay(100);
+
+		chErr = PobierzStatus(&chStatus1);
+		chErr |= ZmierzRSSI(&chStatus2, &chRssi);
+		chErr = PobierzStatusPakietu(&chStatus3, &chStatusOdbioru, &chRssiSync, &chRssiPakietu);
+
+		sRozmiar = sprintf((char*)chBuforUart, "RSSI @ %d MHz: %d dBm, RSync:%d, RSSI Pakietu: %d, Status1: 0x%.2X, Status2: 0x%.2X, Status3: 0x%.2X\r\n", 850 + n * 10, chRssi, chRssiSync, chRssiPakietu, chStatus1, chStatus2, chStatus3);
+		chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
 	}
 	return chErr;
 }
 
-//HAL_StatusTypeDef SUBGHZSPI_Transmit(SUBGHZ_HandleTypeDef *hsubghz, uint8_t Data)
-//HAL_StatusTypeDef SUBGHZSPI_Receive(SUBGHZ_HandleTypeDef *hsubghz, uint8_t *pData)
+
+
+
+//////////////////////////////////////////////////////////////////////////////////
+// funkcja skanuje pasmo i zwraca UARTem wartość zmierzonego RSSI dla badanych częstotliwosci
+// Parametry:
+// Zwraca: kod błędu
+//////////////////////////////////////////////////////////////////////////////////
+uint8_t WlaczObior(void)
+{
+	HAL_StatusTypeDef chErr = ERR_OK;
+	int8_t chRssi;
+	int8_t chRssiPakietu;
+	int8_t chRssiSync;
+	uint8_t chBuforUart[90];
+	uint8_t chStatus;
+	uint16_t sRozmiar;
+	uint8_t chStatusOdbioru;
+
+
+	//Lista operacji aby przejsć w tryb RX str 205
+	//The sub-GHz radio can be set in LoRa or (G)FSK receive operation mode with the following steps:
+	//1. Define the location where the received payload data must be stored in the data buffer, with Set_BufferBaseAddress().
+	chErr = UstawAdresyBuforow(0x80, 0x00);	//(Tx, Rx)
+
+	//2. Select the packet type (generic or LoRa) with Set_PacketType().
+	chErr = UstawTypPakietu(PAKIET_FSK);
+
+	//3. Define the frame format with Set_PacketParams().
+	chErr = UstawParametryPakietow(0);
+
+	//4. Define synchronization word in the associated packet type SUBGHZ_xSYNCR(n) with Write_Register().
+	for (int8_t n=0; n<8; n++)
+		chBuforUart[n] = 0x55;
+	chErr = HAL_SUBGHZ_WriteRegisters(&hsubghz, 0x6C0, chBuforUart, 8);	//SUBGHZ_GSYNCR0
+
+	//5. Define the RF frequency with Set_RfFrequency().
+	chErr = UstawCzestotliwoscPLL(868000000);
+
+	//6. Define the modulation parameters with Set_ModulationParams().
+	chErr = UstawParametryModulacjiFSK(6, 9, BW_FSK467, 1000000);
+
+	//7. Enable RxDone and timeout interrupts by configuring IRQ with Cfg_DioIrq().
+	chErr = UstawPrzerwnia();
+
+	//8. Start the receiver by setting the sub-GHz radio in RX mode with Set_Rx():
+	//– When in continuous receiver mode, the sub-GHz radio remains in RX mode to look for packets until stopped with Set_Standby().
+	//– In single mode (with or without timeout), when the reception is finished, the sub-GHz radio enters automatically the Standby mode.
+	//– In listening mode, the sub-GHz radio repeatedly switches between RX single with timeout mode and Sleep mode.
+	chErr |= UstawTrybOdbioru(1000);	//timeout [us]
+
+	//9. Wait for sub-GHz radio IRQ interrupt and read the interrupt status with Get_IrqStatus():
+	//a) On a RxDone interrupt, a packet is received:
+	//– Check received packet error status (header error, crc error) with Get_IrqStatus().
+	//– When a valid packet is received, read the receive start buffer pointer and received	payload length with Get_RxBufferStatus().
+	//– Read the received payload data from the receive data buffer with Read_Buffer().
+	//b) On a timeout interrupt, the reception is timed out.
+	//10. Clear interrupts with Clr_IrqStatus().
+	//11. Optionally, send a Set_Sleep() command to force the sub-GHz radio in Sleep mode.
+
+	HAL_Delay(100);
+	chErr |= ZmierzRSSI(&chStatus, &chRssi);
+	chErr = PobierzStatusPakietu(&chStatus, &chStatusOdbioru, &chRssiSync, &chRssiPakietu);
+
+	sRozmiar = sprintf((char*)chBuforUart, "RSSI @ 868 MHz: %d dBm, RSync:%d, Status: 0x%.2X, RSSI Pakietu: %d\r\n", chRssi, chRssiSync, chStatus, chRssiPakietu);
+	chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
+	return ERR_OK;
+}
