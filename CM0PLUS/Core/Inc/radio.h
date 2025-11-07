@@ -87,7 +87,18 @@
 #define IRQ_CAD_DETECT	0x100	//CadDetected Channel activity detected LoRa
 #define IRQ_TIMEOUT		0x200	//Timeout RX or TX timeout LoRa and GFSK
 
+//definicje stanów protokłu
+#define RP_ODEBR_DANE		1
+#define RP_ODEBR_SYNC		2
+#define RP_ODEBR_NAGL		3
+#define RP_ODEBR_PREAMB		4
+#define RP_BLAD_NAGL		5
+#define RP_BLAD_CRC			6
+#define RP_TIMEOUT			7
+#define RP_CAD				8
+#define RP_HOP_LR_FHSS		9
 
+#define TIMEOUT_ODB			200
 union u32_8_t
 {
 	uint32_t nDane32;
@@ -119,7 +130,7 @@ uint8_t PobierzStatus(uint8_t *chStatus);
 uint8_t UstawPrzerwnie(uint16_t sGlobalEnable, uint16_t sIRQ1En, uint16_t sIRQ2En, uint16_t sIRQ3En);
 uint8_t KasujPrzerwnie(uint16_t sPrzerwanie);
 uint8_t SkanujPasmo(void);
-uint8_t WlaczObior(void);
+uint8_t WlaczObiorGFSK(void);
 uint8_t WyslijRamkeGFSK(void);
 
 #endif /* INC_RADIO_H_ */

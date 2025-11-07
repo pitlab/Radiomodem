@@ -146,11 +146,11 @@ void SysTick_Handler(void)
 void SUBGHZ_Radio_IRQHandler(void)
 {
   /* USER CODE BEGIN SUBGHZ_Radio_IRQn 0 */
-
+	BSP_LED_On(LED_RED);
   /* USER CODE END SUBGHZ_Radio_IRQn 0 */
   HAL_SUBGHZ_IRQHandler(&hsubghz);
   /* USER CODE BEGIN SUBGHZ_Radio_IRQn 1 */
-
+  BSP_LED_Off(LED_RED);
   /* USER CODE END SUBGHZ_Radio_IRQn 1 */
 }
 

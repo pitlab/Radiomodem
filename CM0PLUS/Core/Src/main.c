@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "radio.h"
+#include "stm32wlxx_nucleo_radio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -111,7 +112,9 @@ int main(void)
 	  //HAL_Delay(delay);
 	  //BSP_LED_Toggle(LED_BLUE);
 
-	  WyslijRamkeGFSK();
+	  //WyslijRamkeGFSK();
+	  WlaczObiorGFSK();
+
   }
   /* USER CODE END 3 */
 }

@@ -8,13 +8,14 @@
 #include "errors.h"
 #include "stdio.h"
 #include "stm32wlxx_nucleo.h"
-
+#include "stm32wlxx_nucleo_radio.h"
 
 extern SUBGHZ_HandleTypeDef hsubghz;
 extern UART_HandleTypeDef huart1;
-uint8_t chTest;
+volatile uint8_t chStanProtokolu;
 uint8_t chLicznikRamek;
 uint8_t chBuforUart[90];
+uint8_t chBuforUart2[40];
 uint8_t chBuforNadawczy[ROZMIAR_BUFORA_NADAWCZEGO];
 uint8_t chBuforOdbiorczy[ROZMIAR_BUFORA_ODBIORCZEGO];
 
@@ -33,49 +34,48 @@ void HAL_SUBGHZ_TxCpltCallback(SUBGHZ_HandleTypeDef *hsubghz)
 //////////////////////////////////////////////////////////////////////////////////
 void HAL_SUBGHZ_RxCpltCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
-	chTest = 0;
+	chStanProtokolu = RP_ODEBR_DANE;
 }
 
 void HAL_SUBGHZ_PreambleDetectedCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
-	chTest = 1;
+	chStanProtokolu = RP_ODEBR_PREAMB;
 }
 
 void HAL_SUBGHZ_SyncWordValidCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
-	chTest = 2;
+	chStanProtokolu = RP_ODEBR_SYNC;
 }
 
 void HAL_SUBGHZ_HeaderValidCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
-	chTest = 3;
+	chStanProtokolu = RP_ODEBR_NAGL;
 }
 
 void HAL_SUBGHZ_HeaderErrorCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
-	chTest = 4;
+	chStanProtokolu = RP_BLAD_NAGL;
 }
 
 void HAL_SUBGHZ_CRCErrorCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
-	chTest = 5;
+	chStanProtokolu = RP_BLAD_CRC;
 }
 
 void HAL_SUBGHZ_CADStatusCallback(SUBGHZ_HandleTypeDef *hsubghz, HAL_SUBGHZ_CadStatusTypeDef cadstatus)
 {
-	chTest = 6;
+	chStanProtokolu = RP_CAD;
 }
 
 void HAL_SUBGHZ_RxTxTimeoutCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
-	chTest = 7;
+	chStanProtokolu = RP_TIMEOUT;
 }
 
 void HAL_SUBGHZ_LrFhssHopCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
-	chTest = 8;
+	chStanProtokolu = RP_HOP_LR_FHSS;
 }
-
 
 /*(+) Set and execute a command in blocking mode using @ref HAL_SUBGHZ_ExecSetCmd()
   (+) Get a status blocking mode using @ref HAL_SUBGHZ_ExecGetCmd()
@@ -239,7 +239,7 @@ uint8_t ZmierzRSSI(uint8_t* chStatus, int8_t* chRSSI)
 	if (chErr == ERR_OK)
 	{
 		*chStatus = chBuforDanych[1];
-		*chRSSI = (int8_t)chBuforDanych[0] / (-2);
+		*chRSSI = chBuforDanych[0] / 2 * (-1);
 		/*chStatus = chBuforDanych[0];
 		*chRSSI = (int8_t)chBuforDanych[1] / (-2);*/
 	}
@@ -473,8 +473,8 @@ uint8_t PobierzStatusPakietu(uint8_t *chStatus, uint8_t *chStatusOdbioru, int8_t
 
 		*chStatus = (int8_t)chBuforDanych[0];
 		*chStatusOdbioru = (int8_t)chBuforDanych[1];
-		*chRSSISync = chBuforDanych[2] / -2;
-		*chSrednRSSI = chBuforDanych[3] / -2;
+		*chRSSISync = (int8_t)(chBuforDanych[2] / 2) * (-1);
+		*chSrednRSSI = (chBuforDanych[3] / 2) * (-1);
 	}
 	return chErr;
 }
@@ -629,6 +629,7 @@ uint8_t SkanujPasmo(void)
 	uint16_t sRozmiar;
 	uint8_t chStatusOdbioru;
 
+	BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_RX);
 	chErr = UstawSleep(0);	//b0=0 Sub-GHz radio RTC wake-up disabled, b2=0 cold startup when exiting Sleep mode, configuration registers reset
 	chErr = UstawStandby(0);
 	chErr = UstawPrzerwnie(IRQ_RX_DONE + IRQ_TIMEOUT + IRQ_CAD_DETECT, IRQ_RX_DONE, IRQ_TIMEOUT, IRQ_CAD_DETECT);
@@ -678,17 +679,18 @@ uint8_t SkanujPasmo(void)
 // Parametry:
 // Zwraca: kod błędu
 //////////////////////////////////////////////////////////////////////////////////
-uint8_t WlaczObior(void)
+uint8_t WlaczObiorGFSK(void)
 {
 	HAL_StatusTypeDef chErr = ERR_OK;
 	int8_t chRssi;
 	int8_t chRssiPakietu;
 	int8_t chRssiSync;
-
+	uint8_t chTimeout;
 	uint8_t chStatus;
-	uint16_t sRozmiar;
+	uint16_t sRozmiar, sRozmiar2;
 	uint8_t chStatusOdbioru;
 
+	BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_RX);
 
 	//Lista operacji aby przejsć w tryb RX str 205
 	//The sub-GHz radio can be set in LoRa or (G)FSK receive operation mode with the following steps:
@@ -713,7 +715,8 @@ uint8_t WlaczObior(void)
 	chErr = UstawParametryModulacjiFSK(6, 9, BW_FSK467, 1000000);
 
 	//7. Enable RxDone and timeout interrupts by configuring IRQ with Cfg_DioIrq().
-	chErr = UstawPrzerwnie(IRQ_RX_DONE + IRQ_TIMEOUT + IRQ_CAD_DETECT, IRQ_RX_DONE, IRQ_TIMEOUT, IRQ_CAD_DETECT);
+	//chErr = UstawPrzerwnie(IRQ_RX_DONE + IRQ_TIMEOUT + IRQ_CAD_DETECT + IRQ_CAD_DETECT + IRQ_PREAMB_DET + IRQ_SYNC_DET + IRQ_CRC_ERROR, IRQ_RX_DONE, IRQ_TIMEOUT + IRQ_CRC_ERROR, IRQ_CAD_DETECT + IRQ_CAD_DETECT + IRQ_PREAMB_DET + IRQ_SYNC_DET);
+	UstawPrzerwnie(0x3FF, 0x3FF, 0, 0);
 
 	//8. Start the receiver by setting the sub-GHz radio in RX mode with Set_Rx():
 	//– When in continuous receiver mode, the sub-GHz radio remains in RX mode to look for packets until stopped with Set_Standby().
@@ -732,11 +735,44 @@ uint8_t WlaczObior(void)
 	chErr = KasujPrzerwnie(IRQ_RX_DONE + IRQ_TIMEOUT + IRQ_CAD_DETECT);
 	//11. Optionally, send a Set_Sleep() command to force the sub-GHz radio in Sleep mode.
 
-	HAL_Delay(100);
+	chTimeout = TIMEOUT_ODB;
+	do
+	{
+	  chTimeout--;
+	  sRozmiar = 0;
+	  switch (chStanProtokolu)
+	  {
+	  case RP_ODEBR_DANE:  	sRozmiar = sprintf((char*)chBuforUart, "%d: Odebrano dane:", TIMEOUT_ODB - chTimeout);
+	  	  for (uint8_t n=0; n<10; n++)
+	  	  {
+	  		sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, " %d,", chBuforOdbiorczy[n]);
+	  		sRozmiar += sRozmiar2;
+	  	  }
+	  	  sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, "\n\r");
+	  	  sRozmiar += sRozmiar2;
+	  	  break;
+
+	  case RP_ODEBR_SYNC:	sRozmiar = sprintf((char*)chBuforUart, "%d: Odebrano sync\r\n", TIMEOUT_ODB - chTimeout);	  break;
+	  case RP_ODEBR_NAGL:	sRozmiar = sprintf((char*)chBuforUart, "%d: Odebrano naglowek\r\n", TIMEOUT_ODB - chTimeout);	  break;
+	  case RP_ODEBR_PREAMB:	sRozmiar = sprintf((char*)chBuforUart, "%d: Odebrano preamule\r\n", TIMEOUT_ODB - chTimeout);	  break;
+	  case RP_BLAD_NAGL:	sRozmiar = sprintf((char*)chBuforUart, "%d: Blad naglowka\r\n", TIMEOUT_ODB - chTimeout);	  break;
+	  case RP_BLAD_CRC:		sRozmiar = sprintf((char*)chBuforUart, "%d: Blad CRC\r\n", TIMEOUT_ODB - chTimeout);	  break;
+	  case RP_TIMEOUT:		sRozmiar = sprintf((char*)chBuforUart, "%d: Timeout\r\n", TIMEOUT_ODB - chTimeout);	  break;
+	  case RP_CAD:			sRozmiar = sprintf((char*)chBuforUart, "%d: CAD\r\n", TIMEOUT_ODB - chTimeout);	  break;
+	  case RP_HOP_LR_FHSS:	sRozmiar = sprintf((char*)chBuforUart, "%d: HOP_LR_FHSS\r\n", TIMEOUT_ODB - chTimeout);	  break;
+		  break;
+	  }
+	  if (sRozmiar)
+		  chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
+	  chStanProtokolu = 0;
+	  HAL_Delay(1);
+	}
+	while (chTimeout);
+
 	chErr |= ZmierzRSSI(&chStatus, &chRssi);
 	chErr = PobierzStatusPakietu(&chStatus, &chStatusOdbioru, &chRssiSync, &chRssiPakietu);
 
-	sRozmiar = sprintf((char*)chBuforUart, "RSSI @ 868 MHz: %d dBm, RSync:%d, Status: 0x%.2X, RSSI Pakietu: %d\r\n", chRssi, chRssiSync, chStatus, chRssiPakietu);
+	sRozmiar = sprintf((char*)chBuforUart, "RSSI2B @ 868 MHz: %d dBm, RSync:%d, Status: 0x%.2X, RSSI Pakietu: %d\r\n", chRssi, chRssiSync, chStatus, chRssiPakietu);
 	chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
 	return ERR_OK;
 }
@@ -752,6 +788,8 @@ uint8_t WyslijRamkeGFSK(void)
 {
 	uint16_t sRozmiar;
 	uint8_t chErr;
+
+	BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_RFO_HP);
 
 	//str 204
 	//The sub-GHz radio can be set in LoRa, (G)MSK or (G)FSK transmit operation mode with the following steps:
@@ -789,10 +827,10 @@ uint8_t WyslijRamkeGFSK(void)
 	chErr |= UstawParametryModulacjiFSK(100000, 9, 0x09, 0xFF);	//100kbps, środkowy shaping, max pasmo, dewiacja od czapy
 
 	//10. Enable TxDone and timeout interrupts by configuring IRQ with Cfg_DioIrq().
-	chErr |= UstawPrzerwnie(IRQ_TX_DONE + IRQ_TIMEOUT + IRQ_SYNC_DET, IRQ_TX_DONE, IRQ_TIMEOUT, IRQ_SYNC_DET);
+	chErr |= UstawPrzerwnie(IRQ_TX_DONE + IRQ_TIMEOUT + IRQ_SYNC_DET + IRQ_CAD_DETECT + IRQ_CAD_DONE, IRQ_TX_DONE, IRQ_TIMEOUT + IRQ_CAD_DETECT + IRQ_CAD_DONE, IRQ_SYNC_DET);
 
 	//11. Start the transmission by setting the sub-GHz radio in TX mode with Set_Tx(). After the transmission is finished, the sub-GHz radio enters automatically the Standby mode.
-	chErr |= UstawTrybNadawania(10000);	//timeout
+	chErr |= UstawTrybNadawania(500);	//timeout
 
 	//12. Wait for sub-GHz radio IRQ interrupt and read interrupt status with Get_IrqStatus():
 	//a) On a TxDone interrupt, the packet is successfully sent
