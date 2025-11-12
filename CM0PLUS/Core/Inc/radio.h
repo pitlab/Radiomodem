@@ -63,6 +63,15 @@
 #define BW_LORA250	0x05 	//bandwidth 250 (250 kHz)
 #define BW_LORA500	0x06 	//bandwidth 500 (500 kHz)
 
+#define ROZPROSZ5	0x05	//Spreading factor 5
+#define ROZPROSZ6	0x06	//Spreading factor 6
+#define ROZPROSZ7	0x07	//Spreading factor 7
+#define ROZPROSZ8	0x08	//Spreading factor 8
+#define ROZPROSZ9	0x09	//Spreading factor 9
+#define ROZPROSZ10	0x0A	//Spreading factor 10
+#define ROZPROSZ11	0x0B	//Spreading factor 11
+#define ROZPROSZ12	0x0C	//Spreading factor 12
+
 
 //definicje trybów pracy
 #define TP_SLEEP		0x1
@@ -97,6 +106,10 @@
 #define RP_TIMEOUT			7
 #define RP_CAD				8
 #define RP_HOP_LR_FHSS		9
+#define RP_WYSLANO			10
+
+#define FREQ_GFSK		868000000
+#define FREQ_LORA		868000000
 
 #define TIMEOUT_ODB			200
 union u32_8_t
@@ -121,16 +134,21 @@ uint8_t UstawParametryNadajnika(uint8_t chWypelnienieCyklu, uint8_t HpMax, uint8
 uint8_t UstawTrybFallbaclk(uint8_t chTryb);
 uint8_t UstawAdresyBuforow(uint8_t chBufNad, uint8_t chBudOdb);
 uint8_t UstawParametryModulacjiFSK(uint32_t nPredkoscBit, uint8_t chKsztaltImpulsu, uint8_t chSzerokoscPasma, uint32_t nOdchylCzestotliwosci);
-uint8_t UstawParametryModulacjiLoRa(uint32_t nPredkoscBit, uint8_t chKsztaltImpulsu, uint8_t chSzerokoscPasma, uint32_t nOdchylCzestotliwosci);
+uint8_t UstawParametryModulacjiLoRa(uint8_t chSpredingFactor, uint8_t chSzerokoscPasma, uint8_t chKorekcjaBledow, uint8_t chOptymalizacja);
 uint8_t PobierzStatusPakietu(uint8_t *chStatus, uint8_t *chStatusOdbioru, int8_t *chRSSISync, int8_t *chSrednRSSI);
 uint8_t PobierzBlad(uint8_t *chStatus, uint8_t *chBlad);
 uint8_t UstawSleep(uint8_t chKonfig);
 uint8_t UstawStandby(uint8_t chKonfig);
+uint8_t UstawCAD(void);
 uint8_t PobierzStatus(uint8_t *chStatus);
 uint8_t UstawPrzerwnie(uint16_t sGlobalEnable, uint16_t sIRQ1En, uint16_t sIRQ2En, uint16_t sIRQ3En);
 uint8_t KasujPrzerwnie(uint16_t sPrzerwanie);
 uint8_t SkanujPasmo(void);
 uint8_t WlaczObiorGFSK(void);
 uint8_t WyslijRamkeGFSK(void);
+uint8_t WyslijRamkeLoRa(void);
+uint8_t WlaczObiorLoRa(void);
+uint8_t NadawajNosna(uint32_t nCzestotliwosc, uint32_t czas_ms);
+uint8_t NadawajPrembule(uint32_t nCzestotliwosc, uint32_t czas_ms);
 
 #endif /* INC_RADIO_H_ */

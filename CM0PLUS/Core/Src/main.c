@@ -41,7 +41,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-
+extern uint8_t chBuforUart[];
 COM_InitTypeDef BspCOMInit;
 //static uint32_t delay = 250;
 
@@ -95,7 +95,13 @@ int main(void)
   MX_SUBGHZ_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  BSP_RADIO_Init();
+  uint32_t nTxco = BSP_RADIO_IsTCXO ();
+  if (nTxco == 1)
+  {
+	  uint16_t sRozmiar = sprintf((char*)chBuforUart, "TXCO wspierane \r\n");
+	  HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
+  }
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -107,14 +113,13 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	  //SkanujPasmo();
-
 	  //WlaczObior();
-	  //HAL_Delay(delay);
-	  //BSP_LED_Toggle(LED_BLUE);
-
+	  WlaczObiorLoRa();
+	  //WyslijRamkeLoRa();
 	  //WyslijRamkeGFSK();
-	  WlaczObiorGFSK();
-
+	  //WlaczObiorGFSK();
+	  //NadawajNosna(FREQ_LORA, 100);
+	  //NadawajPrembule(FREQ_LORA, 100);
   }
   /* USER CODE END 3 */
 }

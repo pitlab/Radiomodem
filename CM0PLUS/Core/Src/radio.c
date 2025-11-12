@@ -24,7 +24,7 @@ uint8_t chBuforOdbiorczy[ROZMIAR_BUFORA_ODBIORCZEGO];
 //////////////////////////////////////////////////////////////////////////////////
 void HAL_SUBGHZ_TxCpltCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
-
+	chStanProtokolu = RP_WYSLANO;
 }
 
 
@@ -96,12 +96,15 @@ void HAL_SUBGHZ_LrFhssHopCallback(SUBGHZ_HandleTypeDef *hsubghz)
 uint8_t UstawTrybOdbioru(uint32_t nTimeout)
 {
 	HAL_StatusTypeDef chErr;
-	union u32_8_t Unia32_8;
 	uint8_t chStatus;
 	uint8_t chLicznikTimeoutu = 100;
+	uint8_t chBuforDanych[3];
 
-	Unia32_8.nDane32 = (uint32_t)(nTimeout / 15.625) & 0xFFFFFF;
-	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_RX, Unia32_8.chDane8, 3);
+	nTimeout = (uint32_t)(nTimeout * 64) / 1000; 	//1/15,625 = 0,064
+	chBuforDanych[0] = (nTimeout >> 16) & 0xFF;
+	chBuforDanych[1] = (nTimeout >> 8) & 0xFF;
+	chBuforDanych[2] = (nTimeout) & 0xFF;
+	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_RX, chBuforDanych, 3);
 
 	//sprawdź czy wszedł w tryb odbioru
 	do
@@ -126,25 +129,31 @@ uint8_t UstawTrybOdbioru(uint32_t nTimeout)
 uint8_t UstawTrybNadawania(uint32_t nTimeout)
 {
 	HAL_StatusTypeDef chErr;
-	union u32_8_t Unia32_8;
 	uint8_t chStatus;
 	uint8_t chLicznikTimeoutu = 100;
+	uint8_t chBuforDanych[3];
 
-	Unia32_8.nDane32 = (uint32_t)(nTimeout / 15.625);
-	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_TX, Unia32_8.chDane8, 3);	//sprawdzić czy unia dobrze się przelicza
+	nTimeout = (uint32_t)(nTimeout * 64) / 1000; 	//1/15,625 = 0,064
+
+	chBuforDanych[0] = (nTimeout >> 16) & 0xFF;
+	chBuforDanych[1] = (nTimeout >> 8) & 0xFF;
+	chBuforDanych[2] = (nTimeout) & 0xFF;
+	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_TX, chBuforDanych, 3);
 
 	//sprawdź czy wszedł w tryb nadawania
 	do
 	{
 		chErr = PobierzStatus(&chStatus);
 		chLicznikTimeoutu--;
+		HAL_Delay(1);
 	}
 	while ((((chStatus & MASKA_TRYBU) >> 4) != TP_TX) && (chLicznikTimeoutu));
 
-	if (chLicznikTimeoutu)
+	if (!chLicznikTimeoutu)
 		chErr = ERR_TIMEOUT;
 	return chErr;
 }
+
 
 
 
@@ -187,13 +196,13 @@ uint8_t UstawCzestotliwoscPLL(uint32_t nCzestotliwosc)
 {
 	HAL_StatusTypeDef chErr;
 	uint8_t chBuforDanych[4];
-	uint64_t lCzestotliwosc;
+	uint32_t nRejCzest;
 
-	lCzestotliwosc = ((uint64_t)nCzestotliwosc * (1UL << 25)) / 32e6;
-	chBuforDanych[0] = (lCzestotliwosc >> 24) & 0xFF;
-	chBuforDanych[1] = (lCzestotliwosc >> 16) & 0xFF;
-	chBuforDanych[2] = (lCzestotliwosc >> 8) & 0xFF;
-	chBuforDanych[3] = (lCzestotliwosc) & 0xFF;
+	nRejCzest = (uint32_t)(((double)nCzestotliwosc * (1UL << 25)) / 32000000.0);
+	chBuforDanych[0] = (nRejCzest >> 24) & 0xFF;
+	chBuforDanych[1] = (nRejCzest >> 16) & 0xFF;
+	chBuforDanych[2] = (nRejCzest >> 8) & 0xFF;
+	chBuforDanych[3] = (nRejCzest) & 0xFF;
 
 	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_RFFREQUENCY, chBuforDanych, 4);
 	return chErr;
@@ -380,17 +389,15 @@ uint8_t UstawParametryModulacjiFSK(uint32_t nPredkoscBit, uint8_t chKsztaltImpul
 {
 	HAL_StatusTypeDef chErr;
 	uint8_t chBuforDanych[7];
-	union u32_8_t Unia32_8;
 
-	Unia32_8.nDane32 = nPredkoscBit & 0xFFFFFF;
-	for (uint8_t n=0; n<3; n++)
-		chBuforDanych[n] = Unia32_8.chDane8[n];
-
+	chBuforDanych[0] = (nPredkoscBit >> 16) & 0xFF;
+	chBuforDanych[1] = (nPredkoscBit >> 8) & 0xFF;
+	chBuforDanych[2] = (nPredkoscBit) & 0xFF;
 	chBuforDanych[3] = chKsztaltImpulsu & 0x0F;
 	chBuforDanych[4] = chSzerokoscPasma;
-	Unia32_8.nDane32 = nOdchylCzestotliwosci & 0xFFFFFF;
-	for (uint8_t n=0; n<3; n++)
-		chBuforDanych[n+5] = Unia32_8.chDane8[n];
+	chBuforDanych[5] = (nOdchylCzestotliwosci >> 16) & 0xFF;
+	chBuforDanych[6] = (nOdchylCzestotliwosci >> 8) & 0xFF;
+	chBuforDanych[7] = (nOdchylCzestotliwosci) & 0xFF;
 	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_MODULATIONPARAMS, chBuforDanych, 8);
 	return chErr;
 }
@@ -400,27 +407,22 @@ uint8_t UstawParametryModulacjiFSK(uint32_t nPredkoscBit, uint8_t chKsztaltImpul
 //////////////////////////////////////////////////////////////////////////////////
 // ustawia parametry modulacji LoRa. Musi być poprzedzone funkcją: UstawTypPakietu()
 // Parametry:
-//	nPredkoscBit = 32 * 32MHz / prędkość transmisji
-//	chKsztaltImpulsu - wartość filtra kstałtujacego impulsy: 0=bez filtra, 8=Gaussian BT 0.3; 9=Gaussian BT 0.5; 10=Gaussian BT 0.7; 11=Gaussian BT 1.0;
-//	chSzerokoscPasma - patrz definicje stałych: BW4..BW467
+//	chSpredingFactor = 0x05..0x0C - rozproszenie widma
+//	chSzerokoscPasma - patrz definicje stałych: BW_LORA7..BW_LORA500
 //	nOdchylCzestotliwosci - Frequency deviation x 225 / 32 MHz
 // Zwraca: kod błędu
 //////////////////////////////////////////////////////////////////////////////////
-uint8_t UstawParametryModulacjiLoRa(uint32_t nPredkoscBit, uint8_t chKsztaltImpulsu, uint8_t chSzerokoscPasma, uint32_t nOdchylCzestotliwosci)
+uint8_t UstawParametryModulacjiLoRa(uint8_t chSpredingFactor, uint8_t chSzerokoscPasma, uint8_t chKorekcjaBledow, uint8_t chOptymalizacja)
 {
 	HAL_StatusTypeDef chErr;
-	uint8_t chBuforDanych[8];
-	union u32_8_t Unia32_8;
+	uint8_t chBuforDanych[4];
 
-	Unia32_8.nDane32 = nPredkoscBit & 0xFFFFFF;
-	for (uint8_t n=0; n<3; n++)
-		chBuforDanych[n] = Unia32_8.chDane8[n];
-	chBuforDanych[3] = chKsztaltImpulsu & 0x0F;
-	chBuforDanych[4] = chSzerokoscPasma;
-	Unia32_8.nDane32 = nOdchylCzestotliwosci & 0xFFFFFF;
-	for (uint8_t n=0; n<3; n++)
-		chBuforDanych[n+5] = Unia32_8.chDane8[n];
-	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_MODULATIONPARAMS, chBuforDanych, 8);
+	chBuforDanych[0] = chSpredingFactor & 0x0F;
+	chBuforDanych[1] = chSzerokoscPasma & 0x0F;
+	chBuforDanych[2] = chKorekcjaBledow & 0x07;
+	chBuforDanych[3] = chOptymalizacja & 0x01;
+
+	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_MODULATIONPARAMS, chBuforDanych, 4);
 	return chErr;
 }
 
@@ -543,6 +545,18 @@ uint8_t UstawStandby(uint8_t chKonfig)
 
 
 
+//////////////////////////////////////////////////////////////////////////////////
+// Ustawia Cannel Activity Detection
+// Parametry:
+// Zwraca: kod błędu
+//////////////////////////////////////////////////////////////////////////////////
+uint8_t UstawCAD(void)
+{
+	uint8_t chKonfig = 0;
+	return HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_CAD, &chKonfig, 0);
+}
+
+
 
 //////////////////////////////////////////////////////////////////////////////////
 // Ustawia parametry pakietów
@@ -554,10 +568,10 @@ uint8_t UstawParametryPakietow(uint8_t chTryb)
 	HAL_StatusTypeDef chErr;
 	uint8_t chKonfig[8] = {0};
 
-	chKonfig[0] = 15;	//bytes 2:1 bits 15:0 PbLength[15:0]: Preamble length in number of symbols
+	chKonfig[0] = 8;	//bytes 2:1 bits 15:0 PbLength[15:0]: Preamble length in number of symbols
 	chKonfig[1] = 0;
-	chKonfig[2] = 0;	//bits 2:0 PbDetLength[2:0]: Preamble detection length in number of bit symbols: 0x0: preamble detection disabled, 0x4: 8-bit preamble detection, 0x5: 16-bit preamble detection, 0x6: 24-bit preamble detection, 0x7: 32-bit preamble detection
-	chKonfig[3] = 0;	//bits: 6:0 SyncWordLength[6:0]: Synchronization word length in number of bit symbols: 0x00 - 0x40: 0 to 64-bit synchronization word (synchronization word data defined in SUBGHZ_GSYNCR[0:7])
+	chKonfig[2] = 5;	//bits 2:0 PbDetLength[2:0]: Preamble detection length in number of bit symbols: 0x0: preamble detection disabled, 0x4: 8-bit preamble detection, 0x5: 16-bit preamble detection, 0x6: 24-bit preamble detection, 0x7: 32-bit preamble detection
+	chKonfig[3] = 16;	//bits: 6:0 SyncWordLength[6:0]: Synchronization word length in number of bit symbols: 0x00 - 0x40: 0 to 64-bit synchronization word (synchronization word data defined in SUBGHZ_GSYNCR[0:7])
 	chKonfig[4] = 0;	//bits: 1:0 AddrComp[1:0]: Address comparison/filtering, 0x0: address comparison/filtering disabled, 0x1: address comparison/filtering on node address, 0x2: address comparison/filtering on node and broadcast addresses
 	chKonfig[5] = 1;	//bit 0 PktType: Packet type definition: 0: Fixed payload length and header field not added to packet, 1: Variable payload length and header field added to packet
 	chKonfig[6] = 20;	//bits 7:0 PayloadLength[7:0]: Payload length in number of bytes 0x00- 0xFF: 0 to 255 bytes
@@ -709,7 +723,7 @@ uint8_t WlaczObiorGFSK(void)
 	chErr = HAL_SUBGHZ_WriteRegisters(&hsubghz, 0x6C0, chBuforUart, 8);	//SUBGHZ_GSYNCR0
 
 	//5. Define the RF frequency with Set_RfFrequency().
-	chErr = UstawCzestotliwoscPLL(868000000);
+	chErr = UstawCzestotliwoscPLL(FREQ_GFSK);
 
 	//6. Define the modulation parameters with Set_ModulationParams().
 	chErr = UstawParametryModulacjiFSK(6, 9, BW_FSK467, 1000000);
@@ -772,7 +786,7 @@ uint8_t WlaczObiorGFSK(void)
 	chErr |= ZmierzRSSI(&chStatus, &chRssi);
 	chErr = PobierzStatusPakietu(&chStatus, &chStatusOdbioru, &chRssiSync, &chRssiPakietu);
 
-	sRozmiar = sprintf((char*)chBuforUart, "RSSI2B @ 868 MHz: %d dBm, RSync:%d, Status: 0x%.2X, RSSI Pakietu: %d\r\n", chRssi, chRssiSync, chStatus, chRssiPakietu);
+	sRozmiar = sprintf((char*)chBuforUart, "RSSI2B @ %dHz: %d dBm, RSync:%d, Status: 0x%.2X, RSSI Pakietu: %d\r\n", FREQ_GFSK, chRssi, chRssiSync, chStatus, chRssiPakietu);
 	chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
 	return ERR_OK;
 }
@@ -799,8 +813,8 @@ uint8_t WyslijRamkeGFSK(void)
 	//2. Write the payload data to the transmit data buffer with Write_Buffer().
 	for (uint8_t n=0; n<ROZMIAR_BUFORA_NADAWCZEGO; n++)
 		chBuforNadawczy[n] = n;
-	chErr |= HAL_SUBGHZ_WriteBuffer(&hsubghz, 0, chBuforNadawczy, ROZMIAR_BUFORA_NADAWCZEGO);
-	chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, 0, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);
+	chErr |= HAL_SUBGHZ_WriteBuffer(&hsubghz, 0, chBuforNadawczy, ROZMIAR_BUFORA_NADAWCZEGO);	//zapełnij danymi
+	chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, 0, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);	//testuj czy się zapisało
 
 	//3. Select the packet type (generic or LoRa) with Set_PacketType().
 	chErr |= UstawTypPakietu(PAKIET_FSK);
@@ -814,7 +828,7 @@ uint8_t WyslijRamkeGFSK(void)
 	chErr |= HAL_SUBGHZ_WriteRegisters(&hsubghz, 0x6C0, chBuforUart, 8);	//SUBGHZ_GSYNCR0
 
 	//6. Define the RF frequency with Set_RfFrequency().
-	chErr |= UstawCzestotliwoscPLL(868000000 + chLicznikRamek);
+	chErr |= UstawCzestotliwoscPLL(FREQ_GFSK + chLicznikRamek);
 
 	//7. Define the PA configuration with Set_PaConfig().
 	//chErr = UstawParametryNadajnika(1, 0, 1);	//tabela str184 moc: +10dBm
@@ -844,4 +858,276 @@ uint8_t WyslijRamkeGFSK(void)
 	//14. Optionally, send a Set_Sleep() command to force the sub-GHz radio in Sleep mode.
 	chErr |= UstawSleep(0);
 	return chErr;
+}
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////
+// okresowo wysyła ramkę LoRa danych aby sprawdzić czy działa nadajnik
+// Parametry: nic
+// Zwraca: kod błędu
+//////////////////////////////////////////////////////////////////////////////////
+uint8_t WyslijRamkeLoRa(void)
+{
+	uint16_t sRozmiar;
+	uint8_t chErr;
+	uint8_t chBuf[4];
+
+	BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_RFO_LP);
+
+	//str 204
+	//The sub-GHz radio can be set in LoRa, (G)MSK or (G)FSK transmit operation mode with the following steps:
+	//1. Define the location of the transmit payload data in the data buffer, with Set_BufferBaseAddress().
+	chErr = UstawAdresyBuforow(ROZMIAR_BUFORA_ODBIORCZEGO, 0x00);	//(Tx, Rx)
+
+	//2. Write the payload data to the transmit data buffer with Write_Buffer().
+	for (uint8_t n=0; n<ROZMIAR_BUFORA_NADAWCZEGO; n++)
+		chBuforNadawczy[n] = n;
+	chErr |= HAL_SUBGHZ_WriteBuffer(&hsubghz, 0, chBuforNadawczy, ROZMIAR_BUFORA_NADAWCZEGO);	//zapełnij danymi
+
+	//3. Select the packet type (generic or LoRa) with Set_PacketType().
+	chErr |= UstawTypPakietu(PAKIET_LORA);
+
+	//4. Define the frame format with Set_PacketParams().
+	chErr |= UstawParametryPakietow(0);
+
+	//5. Define synchronization word in the associated packet type SUBGHZ_xSYNCR(n) with Write_Register().
+	for (int8_t n=0; n<8; n++)
+		chBuforUart[n] = 0x55;
+	chErr |= HAL_SUBGHZ_WriteRegisters(&hsubghz, 0x6C0, chBuforUart, 8);	//SUBGHZ_GSYNCR0
+
+	//6. Define the RF frequency with Set_RfFrequency().
+	//chErr |= UstawCzestotliwoscPLL(FREQ_LORA + chLicznikRamek);
+	chErr |= UstawCzestotliwoscPLL(FREQ_LORA);
+
+	//7. Define the PA configuration with Set_PaConfig().
+	//chErr = UstawParametryNadajnika(1, 0, 1);	//tabela str184 moc: +10dBm
+	chErr |= UstawParametryNadajnika(7, 0, 1);	//tabela str184 moc: +15dBm
+
+	//8. Define the PA output power and ramping with Set_TxParams().
+	chErr |= UstawMocNadajnika(0x0E, 4);
+
+	//9. Define the modulation parameters with Set_ModulationParams().
+	chErr |= UstawParametryModulacjiLoRa(ROZPROSZ5, BW_LORA125, 0,  0);
+
+	//10. Enable TxDone and timeout interrupts by configuring IRQ with Cfg_DioIrq().
+	chErr |= UstawPrzerwnie(IRQ_TX_DONE + IRQ_TIMEOUT + IRQ_SYNC_DET + IRQ_CAD_DETECT + IRQ_CAD_DONE, IRQ_TX_DONE, IRQ_TIMEOUT + IRQ_CAD_DETECT + IRQ_CAD_DONE, IRQ_SYNC_DET);
+
+	//11. Start the transmission by setting the sub-GHz radio in TX mode with Set_Tx(). After the transmission is finished, the sub-GHz radio enters automatically the Standby mode.
+	chErr |= UstawTrybNadawania(500);	//timeout
+
+	chErr |= HAL_SUBGHZ_ExecGetCmd(&hsubghz, RADIO_GET_IRQSTATUS, chBuf, 3);
+
+
+	//12. Wait for sub-GHz radio IRQ interrupt and read interrupt status with Get_IrqStatus():
+	//a) On a TxDone interrupt, the packet is successfully sent
+	//b) On a timeout interrupt, the transmission is timeout.
+	sRozmiar = sprintf((char*)chBuforUart, "Wyslano ramke %d\r\n", chLicznikRamek++);
+	chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
+	HAL_Delay(50);
+	BSP_LED_Toggle(LED_BLUE);
+	//13. Clear interrupt with Clr_IrqStatus().
+	chErr |= KasujPrzerwnie(IRQ_TX_DONE + IRQ_TIMEOUT + IRQ_SYNC_DET);
+	//14. Optionally, send a Set_Sleep() command to force the sub-GHz radio in Sleep mode.
+
+	chErr |= UstawSleep(0);
+	return chErr;
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////
+// funkcja odbiera dane modulacją LoRa
+// Parametry:
+// Zwraca: kod błędu
+//////////////////////////////////////////////////////////////////////////////////
+uint8_t WlaczObiorLoRa(void)
+{
+	HAL_StatusTypeDef chErr = ERR_OK;
+	int8_t chRssi;
+	int8_t chRssiPakietu;
+	int8_t chRssiSync;
+	uint8_t chTimeout;
+	uint8_t chStatus;
+	uint16_t sRozmiar, sRozmiar2;
+	uint8_t chStatusOdbioru;
+
+	BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_RX);
+	chErr = UstawCAD();
+
+	//Lista operacji aby przejsć w tryb RX str 205
+	//The sub-GHz radio can be set in LoRa or (G)FSK receive operation mode with the following steps:
+	//1. Define the location where the received payload data must be stored in the data buffer, with Set_BufferBaseAddress().
+	chErr = UstawAdresyBuforow(0x80, 0x00);	//(Tx, Rx)
+
+	//2. Select the packet type (generic or LoRa) with Set_PacketType().
+	chErr = UstawTypPakietu(PAKIET_LORA);
+
+	//3. Define the frame format with Set_PacketParams().
+	chErr = UstawParametryPakietow(0);
+
+	//4. Define synchronization word in the associated packet type SUBGHZ_xSYNCR(n) with Write_Register().
+	for (int8_t n=0; n<8; n++)
+		chBuforUart[n] = 0x55;
+	chErr = HAL_SUBGHZ_WriteRegisters(&hsubghz, 0x6C0, chBuforUart, 8);	//SUBGHZ_GSYNCR0
+
+	//5. Define the RF frequency with Set_RfFrequency().
+	chErr = UstawCzestotliwoscPLL(FREQ_LORA);
+
+	//6. Define the modulation parameters with Set_ModulationParams().
+	chErr |= UstawParametryModulacjiLoRa(ROZPROSZ5, BW_LORA125, 0,  0);
+
+	//7. Enable RxDone and timeout interrupts by configuring IRQ with Cfg_DioIrq().
+	//chErr = UstawPrzerwnie(IRQ_RX_DONE + IRQ_TIMEOUT + IRQ_CAD_DETECT + IRQ_CAD_DETECT + IRQ_PREAMB_DET + IRQ_SYNC_DET + IRQ_CRC_ERROR, IRQ_RX_DONE, IRQ_TIMEOUT + IRQ_CRC_ERROR, IRQ_CAD_DETECT + IRQ_CAD_DETECT + IRQ_PREAMB_DET + IRQ_SYNC_DET);
+	UstawPrzerwnie(0x3FF, 0x3FF, 0, 0);
+
+	//8. Start the receiver by setting the sub-GHz radio in RX mode with Set_Rx():
+	//– When in continuous receiver mode, the sub-GHz radio remains in RX mode to look for packets until stopped with Set_Standby().
+	//– In single mode (with or without timeout), when the reception is finished, the sub-GHz radio enters automatically the Standby mode.
+	//– In listening mode, the sub-GHz radio repeatedly switches between RX single with timeout mode and Sleep mode.
+	chErr |= UstawTrybOdbioru(200000);	//timeout [us]
+
+	if (chErr == ERR_OK)
+	{
+	//9. Wait for sub-GHz radio IRQ interrupt and read the interrupt status with Get_IrqStatus():
+	//a) On a RxDone interrupt, a packet is received:
+	//– Check received packet error status (header error, crc error) with Get_IrqStatus().
+	//– When a valid packet is received, read the receive start buffer pointer and received	payload length with Get_RxBufferStatus().
+	//– Read the received payload data from the receive data buffer with Read_Buffer().
+		chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, 0, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);
+	}
+
+	//b) On a timeout interrupt, the reception is timed out.
+	//10. Clear interrupts with Clr_IrqStatus().
+	chErr = KasujPrzerwnie(IRQ_RX_DONE + IRQ_TIMEOUT + IRQ_CAD_DETECT);
+	//11. Optionally, send a Set_Sleep() command to force the sub-GHz radio in Sleep mode.
+
+	chTimeout = TIMEOUT_ODB;
+	do
+	{
+	  chTimeout--;
+	  sRozmiar = 0;
+	  switch (chStanProtokolu)
+	  {
+	  case RP_ODEBR_DANE:  	sRozmiar = sprintf((char*)chBuforUart, "%d: Odebrano dane:", TIMEOUT_ODB - chTimeout);
+	  	  for (uint8_t n=0; n<10; n++)
+	  	  {
+	  		sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, " %d,", chBuforOdbiorczy[n]);
+	  		sRozmiar += sRozmiar2;
+	  	  }
+	  	  sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, "\n\r");
+	  	  sRozmiar += sRozmiar2;
+	  	  break;
+
+	  case RP_ODEBR_SYNC:	sRozmiar = sprintf((char*)chBuforUart, "%d: Odebrano sync\r\n", TIMEOUT_ODB - chTimeout);	  break;
+	  case RP_ODEBR_NAGL:	sRozmiar = sprintf((char*)chBuforUart, "%d: Odebrano naglowek\r\n", TIMEOUT_ODB - chTimeout);	  break;
+	  case RP_ODEBR_PREAMB:	sRozmiar = sprintf((char*)chBuforUart, "%d: Odebrano preamule\r\n", TIMEOUT_ODB - chTimeout);	  break;
+	  case RP_BLAD_NAGL:	sRozmiar = sprintf((char*)chBuforUart, "%d: Blad naglowka\r\n", TIMEOUT_ODB - chTimeout);	  break;
+	  case RP_BLAD_CRC:		sRozmiar = sprintf((char*)chBuforUart, "%d: Blad CRC\r\n", TIMEOUT_ODB - chTimeout);	  break;
+	  case RP_TIMEOUT:		sRozmiar = sprintf((char*)chBuforUart, "%d: Timeout\r\n", TIMEOUT_ODB - chTimeout);	  break;
+	  case RP_CAD:			sRozmiar = sprintf((char*)chBuforUart, "%d: CAD\r\n", TIMEOUT_ODB - chTimeout);	  break;
+	  case RP_HOP_LR_FHSS:	sRozmiar = sprintf((char*)chBuforUart, "%d: HOP_LR_FHSS\r\n", TIMEOUT_ODB - chTimeout);	  break;
+		  break;
+	  }
+	  if (sRozmiar)
+		  chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
+	  chStanProtokolu = 0;
+	  HAL_Delay(1);
+	}
+	while (chTimeout);
+
+	chErr |= ZmierzRSSI(&chStatus, &chRssi);
+	chErr = PobierzStatusPakietu(&chStatus, &chStatusOdbioru, &chRssiSync, &chRssiPakietu);
+
+	sRozmiar = sprintf((char*)chBuforUart, "RSSI LoRa2B @ %dHz: %d dBm, RSync:%d, Status: 0x%.2X, RSSI Pakietu: %d\r\n", FREQ_LORA, chRssi, chRssiSync, chStatus, chRssiPakietu);
+	chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
+	return ERR_OK;
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////////
+// funkcja wysyła nośną
+// Parametry:
+// 	nCzestotliwosc - w Hz
+//	czas_ms - czas transmisji nośnej w ms
+// Zwraca: kod błędu
+//////////////////////////////////////////////////////////////////////////////////
+uint8_t NadawajNosna(uint32_t nCzestotliwosc, uint32_t czas_ms)
+{
+	HAL_StatusTypeDef chErr;
+	uint8_t chBuforDanych[8];
+	uint32_t nRejCzest;
+
+	nRejCzest = (uint32_t)(((double)nCzestotliwosc * (1UL << 25)) / 32000000.0);
+	chBuforDanych[0] = (nRejCzest >> 24) & 0xFF;
+	chBuforDanych[1] = (nRejCzest >> 16) & 0xFF;
+	chBuforDanych[2] = (nRejCzest >> 8) & 0xFF;
+	chBuforDanych[3] = (nRejCzest) & 0xFF;
+	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_RFFREQUENCY, chBuforDanych, 4);
+	if (chErr != HAL_OK) return 1;
+
+	//Ustaw moc i ramp time
+	//Power: 14 dBm, Ramp: 40 µs (0x04)
+	chBuforDanych[0] = 14;   // moc w dBm
+	chBuforDanych[1] = 0x04; // ramp time = 40 µs
+	chErr = HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_TXPARAMS, chBuforDanych, 2);
+	if (chErr != HAL_OK) return 2;
+
+	//Ustaw radio w tryb "Continuous Wave" (czysta nośna)
+	chErr = HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_TXCONTINUOUSWAVE, 0, 0);
+	if (chErr != HAL_OK) return 3;
+
+	//Trzymaj nośną przez zadany czas
+	HAL_Delay(czas_ms);
+	BSP_LED_Toggle(LED_BLUE);
+
+	//Powrót do standby
+	uint8_t mode = 0x00; // Standby RC
+	HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_STANDBY, &mode, 1);
+	return ERR_OK;
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////////
+// funkcja wysyła preambułę
+// Parametry:
+// 	nCzestotliwosc - w Hz
+//	czas_ms - czas transmisji nośnej w ms
+// Zwraca: kod błędu
+//////////////////////////////////////////////////////////////////////////////////
+uint8_t NadawajPrembule(uint32_t nCzestotliwosc, uint32_t czas_ms)
+{
+	HAL_StatusTypeDef chErr;
+	uint8_t chBuforDanych[4];
+	uint32_t nRejCzest;
+
+	nRejCzest = (uint32_t)(((double)nCzestotliwosc * (1UL << 25)) / 32000000.0);
+	chBuforDanych[0] = (nRejCzest >> 24) & 0xFF;
+	chBuforDanych[1] = (nRejCzest >> 16) & 0xFF;
+	chBuforDanych[2] = (nRejCzest >> 8) & 0xFF;
+	chBuforDanych[3] = (nRejCzest) & 0xFF;
+	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_RFFREQUENCY, chBuforDanych, 4);
+	if (chErr != HAL_OK) return 1;
+
+	//Ustaw moc i ramp time
+	//Power: 14 dBm, Ramp: 40 µs (0x04)
+	chBuforDanych[0] = 14;   // moc w dBm
+	chBuforDanych[1] = 0x04; // ramp time = 40 µs
+	chErr = HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_TXPARAMS, chBuforDanych, 2);
+	if (chErr != HAL_OK) return 2;
+
+	//Ustaw radio w tryb "Continuous Preamble"
+	chErr = HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_TXCONTINUOUSPREAMBLE, 0, 0);
+	if (chErr != HAL_OK) return 3;
+
+	//Trzymaj nośną przez zadany czas
+	HAL_Delay(czas_ms);
+	BSP_LED_Toggle(LED_BLUE);
+
+	//Powrót do standby
+	uint8_t mode = 0x00; // Standby RC
+	HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_STANDBY, &mode, 1);
+	return ERR_OK;
 }
