@@ -31,6 +31,8 @@
 
 #define ROZMIAR_BUFORA_NADAWCZEGO	128
 #define ROZMIAR_BUFORA_ODBIORCZEGO	128
+#define ADR_BUF_ODB		0x00
+#define ADR_BUF_NAD		0x80
 
 //szerokość pasma
 #define BW_FSK4 	0x1F	//4.8 kHz DSB
@@ -140,6 +142,7 @@ uint8_t UstawMocNadajnika(uint8_t chMoc, uint8_t chCzasNarastania);
 uint8_t UstawParametryNadajnika(uint8_t chWypelnienieCyklu, uint8_t HpMax, uint8_t chZakresMocy);
 uint8_t UstawTrybFallbaclk(uint8_t chTryb);
 uint8_t UstawAdresyBuforow(uint8_t chBufNad, uint8_t chBudOdb);
+uint8_t PobierzStatusBufora(uint8_t *chStatus, uint8_t *chIloscOdebrana, uint8_t *chDane);
 uint8_t UstawParametryModulacjiFSK(uint32_t nPredkoscBit, uint8_t chKsztaltImpulsu, uint8_t chSzerokoscPasma, uint32_t nOdchylCzestotliwosci);
 uint8_t UstawParametryModulacjiLoRa(uint8_t chSpredingFactor, uint8_t chSzerokoscPasma, uint8_t chKorekcjaBledow, uint8_t chOptymalizacja);
 uint8_t PobierzStatusPakietu(uint8_t *chStatus, uint8_t *chStatusOdbioru, int8_t *chRSSISync, int8_t *chSrednRSSI);

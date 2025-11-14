@@ -379,6 +379,28 @@ uint8_t UstawAdresyBuforow(uint8_t chBufNad, uint8_t chBudOdb)
 
 
 //////////////////////////////////////////////////////////////////////////////////
+// pobiera ztatus bufora odbiorczego
+// Parametry:
+//	chBufNad - offset adresu bufora nadajnika względem adresu bazowego sub-GHz RAM
+//	chBudOdb - offset adresu bufora odbiornika względem adresu bazowego sub-GHz RAM
+// Zwraca: kod błędu
+//////////////////////////////////////////////////////////////////////////////////
+uint8_t PobierzStatusBufora(uint8_t *chStatus, uint8_t *chIloscOdebrana, uint8_t *chWskDane)
+{
+	uint8_t chErr, chBuforDanych[4] = {0, 0, 0, 0};
+
+	chErr = HAL_SUBGHZ_ExecGetCmd(&hsubghz, RADIO_GET_RXBUFFERSTATUS, chBuforDanych, 3);
+	if (chErr == ERR_OK)
+		{
+			*chStatus = chBuforDanych[0];
+			*chIloscOdebrana = chBuforDanych[1];
+			*chWskDane = chBuforDanych[2];
+		}
+		return chErr;
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////
 // ustawia parametry modulacji (G)FSK. Musi być poprzedzone funkcją: UstawTypPakietu()
 // Parametry:
 //	nPredkoscBit - określa prędkość transmisji
@@ -569,7 +591,7 @@ uint8_t UstawParametryPakietowGFSK(uint16_t sDlugPreamb, uint8_t chSyncWordlLeng
 	chKonfig[4] = 0;	//bits: 1:0 AddrComp[1:0]: Address comparison/filtering, 0x0: address comparison/filtering disabled, 0x1: address comparison/filtering on node address, 0x2: address comparison/filtering on node and broadcast addresses
 	chKonfig[5] = 0;	//bit 0 PktType: Packet type definition: 0: Fixed payload length and header field not added to packet, 1: Variable payload length and header field added to packet
 	chKonfig[6] = chPayloadLenght;	//bits 7:0 PayloadLength[7:0]: Payload length in number of bytes 0x00- 0xFF: 0 to 255 bytes
-	chKonfig[7] = 1;	//bits 2:0 CrcType[2:0]: CRC type definition The CRC initialization value is provided in SUBGHZ_GCRCINIRL and SUBGHZ_GCRCINIRH. The polynomial is defined in SUBGHZ_GCRCPOLRL and SUBGHZ_GCRCPOLRH.
+	chKonfig[7] = 0;	//bits 2:0 CrcType[2:0]: CRC type definition The CRC initialization value is provided in SUBGHZ_GCRCINIRL and SUBGHZ_GCRCINIRH. The polynomial is defined in SUBGHZ_GCRCPOLRL and SUBGHZ_GCRCPOLRH.
 						//0x0: 1-byte CRC, 0x1: no CRC, 0x2: 2-byte CRC, 0x4: 1-byte inverted CRC, 0x6: 2-byte inverted CRC
 	chKonfig[8] = 0;	//bit 0 Whitening: Whitening enable. The whitening initial value is provided in WHITEINI[8:0]: 0: Whitening disabled, 1: Whitening enabled
 	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_PACKETPARAMS, chKonfig, 8);
@@ -694,22 +716,28 @@ uint8_t WlaczObiorGFSK(uint32_t nTimeout)
 	int8_t chRssiSync;
 	uint16_t sTimeout;
 	uint8_t chStatus;
+	uint8_t chIloscOdebrana, chWskaznikDanych;
 	uint16_t sRozmiar, sRozmiar2;
 	uint8_t chStatusOdbioru;
 	uint8_t SyncWord[4] = {0xC1, 0x94, 0xC1, 0xC1};	//standardowy Semtech
+
+	//zapełnij bufor odbiorczy wzorcem
+	for (uint8_t n=0; n<ROZMIAR_BUFORA_ODBIORCZEGO; n++)
+		chBuforNadawczy[n] = 0x00;
+	chErr |= HAL_SUBGHZ_WriteBuffer(&hsubghz, ADR_BUF_ODB, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);	//zapełnij danymi
 
 	BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_RX);
 
 	//Lista operacji aby przejsć w tryb RX str 205
 	//The sub-GHz radio can be set in LoRa or (G)FSK receive operation mode with the following steps:
 	//1. Define the location where the received payload data must be stored in the data buffer, with Set_BufferBaseAddress().
-	chErr = UstawAdresyBuforow(0x80, 0x00);	//(Tx, Rx)
+	chErr = UstawAdresyBuforow(ADR_BUF_NAD, ADR_BUF_ODB);	//(Tx, Rx)
 
 	//2. Select the packet type (generic or LoRa) with Set_PacketType().
 	chErr = UstawTypPakietu(PAKIET_FSK);
 
 	//3. Define the frame format with Set_PacketParams().
-	chErr = UstawParametryPakietowGFSK(128, 4, 20);
+	chErr = UstawParametryPakietowGFSK(64, 4, 20);
 
 
 	//4. Define synchronization word in the associated packet type SUBGHZ_xSYNCR(n) with Write_Register().
@@ -720,9 +748,9 @@ uint8_t WlaczObiorGFSK(uint32_t nTimeout)
 
 	//6. Define the modulation parameters with Set_ModulationParams().
 
-	chErr = UstawParametryModulacjiFSK(1200, 0,  BW_FSK4,  2000);
+	//chErr = UstawParametryModulacjiFSK(1200, 0,  BW_FSK4,  2000);
 	//chErr = UstawParametryModulacjiFSK(6, 9, BW_FSK467, 1000000);
-	//chErr = UstawParametryModulacjiFSK(9600, 0,  BW_FSK19,  8000);
+	chErr = UstawParametryModulacjiFSK(9600, 0,  BW_FSK19,  8000);
 	//chErr |= UstawParametryModulacjiFSK(9600, 0,  BW_FSK39,  16000);	//9600bps, bez shapingu, pasmo 39k, dewiacja 16k
 
 	//7. Enable RxDone and timeout interrupts by configuring IRQ with Cfg_DioIrq().
@@ -744,7 +772,7 @@ uint8_t WlaczObiorGFSK(uint32_t nTimeout)
 		//– Check received packet error status (header error, crc error) with Get_IrqStatus().
 		//– When a valid packet is received, read the receive start buffer pointer and received	payload length with Get_RxBufferStatus().
 		//– Read the received payload data from the receive data buffer with Read_Buffer().
-		chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, 0, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);
+		chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, ADR_BUF_ODB, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);
 	}
 	//b) On a timeout interrupt, the reception is timed out.
 	//10. Clear interrupts with Clr_IrqStatus().
@@ -758,15 +786,18 @@ uint8_t WlaczObiorGFSK(uint32_t nTimeout)
 		sRozmiar = 0;
 		switch (chStanProtokolu)
 		{
-		case RP_ODEBR_DANE:  	sRozmiar = sprintf((char*)chBuforUart, "%d: Odebrano dane:", sTimeout);
-		  for (uint8_t n=0; n<10; n++)
-		  {
-			sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, " %d,", chBuforOdbiorczy[n]);
+		case RP_ODEBR_DANE:
+			chErr |= PobierzStatusBufora(&chStatus, &chIloscOdebrana, &chWskaznikDanych);
+			sRozmiar = sprintf((char*)chBuforUart, "Odebrano: [%d] status: [%.2X]:", chIloscOdebrana, chStatus);
+			chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, ADR_BUF_ODB, chBuforOdbiorczy, chIloscOdebrana);	//odczytaj bufor
+			for (uint8_t n=0; n<20; n++)
+			{
+				sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, " %.2X,", chBuforOdbiorczy[chWskaznikDanych + n]);
+				sRozmiar += sRozmiar2;
+			}
+			sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, "\n\r");
 			sRozmiar += sRozmiar2;
-		  }
-		  sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, "\n\r");
-		  sRozmiar += sRozmiar2;
-		  break;
+			break;
 
 		case RP_ODEBR_SYNC:		sRozmiar = sprintf((char*)chBuforUart, "%d: Odebrano sync\r\n", sTimeout);	  break;
 		case RP_ODEBR_NAGL:		sRozmiar = sprintf((char*)chBuforUart, "%d: Odebrano naglowek\r\n", sTimeout);	  break;
@@ -781,11 +812,28 @@ uint8_t WlaczObiorGFSK(uint32_t nTimeout)
 		if (sRozmiar)
 			chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
 		sTimeout++;
+
+
+		/*/drukuj cały bufor odbiorczy wierszami 16x16 danych
+		sRozmiar = sprintf((char*)chBuforUart, "Zawartość bufora obiorczego:");
+		chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, ADR_BUF_ODB, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);	//odczytaj bufor
+		for (uint8_t w=0; w<8; w++)
+		{
+			for (uint8_t n=0; n<16; n++)
+			{
+				sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, " %.2X,", chBuforOdbiorczy[w * 16 + n]);
+				sRozmiar += sRozmiar2;
+			}
+			sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, "\n\r");
+			sRozmiar += sRozmiar2;
+			chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
+			sRozmiar = 0;
+		}*/
 	}
 	while ((chStanProtokolu == 0) && (sTimeout < 5000));
 
 	chErr |= PobierzStatusPakietu(&chStatus, &chStatusOdbioru, &chRssiSync, &chRssiPakietu);
-	sRozmiar = sprintf((char*)chBuforUart, "GFSK @ %dHz: RSSI Sync:%d dBm, RSSI Pakietu: %d dBm, Status: 0x%.2X Tout: %d\r\n", FREQ_GFSK, chRssiSync, chRssiPakietu, chStatus, sTimeout);
+	sRozmiar = sprintf((char*)chBuforUart, "GFSK @ %dHz: RSSI Sync:%d dBm, RSSI Pakietu: %d dBm, Status: 0x%.2X Czas: %d\r\n", FREQ_GFSK, chRssiSync, chRssiPakietu, chStatus, sTimeout);
 	chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
 	return chErr;
 }
@@ -804,6 +852,7 @@ uint8_t WlaczObiorCiaglyGFSK(void)
 	int8_t chRssiPakietu;
 	int8_t chRssiSync;
 	uint8_t chStatus;
+	uint8_t chIloscOdebrana, chWskaznikDanych;
 	uint16_t sRozmiar, sRozmiar2;
 	uint8_t chStatusOdbioru;
 	uint8_t SyncWord[4] = {0xC1, 0x94, 0xC1, 0xC1};	//standardowy Semtech
@@ -813,13 +862,13 @@ uint8_t WlaczObiorCiaglyGFSK(void)
 	//Lista operacji aby przejsć w tryb RX str 205
 	//The sub-GHz radio can be set in LoRa or (G)FSK receive operation mode with the following steps:
 	//1. Define the location where the received payload data must be stored in the data buffer, with Set_BufferBaseAddress().
-	chErr = UstawAdresyBuforow(0x80, 0x00);	//(Tx, Rx)
+	chErr = UstawAdresyBuforow(ADR_BUF_NAD, ADR_BUF_ODB);	//(Tx, Rx)
 
 	//2. Select the packet type (generic or LoRa) with Set_PacketType().
 	chErr = UstawTypPakietu(PAKIET_FSK);
 
 	//3. Define the frame format with Set_PacketParams().
-	chErr = UstawParametryPakietowGFSK(128, 4, 20);
+	chErr = UstawParametryPakietowGFSK(64, 4, 20);
 
 
 	//4. Define synchronization word in the associated packet type SUBGHZ_xSYNCR(n) with Write_Register().
@@ -830,9 +879,9 @@ uint8_t WlaczObiorCiaglyGFSK(void)
 
 	//6. Define the modulation parameters with Set_ModulationParams().
 
-	chErr = UstawParametryModulacjiFSK(1200, 0,  BW_FSK4,  2000);
+	//chErr = UstawParametryModulacjiFSK(1200, 0,  BW_FSK4,  2000);
 	//chErr = UstawParametryModulacjiFSK(6, 9, BW_FSK467, 1000000);
-	//chErr = UstawParametryModulacjiFSK(9600, 0,  BW_FSK19,  8000);
+	chErr = UstawParametryModulacjiFSK(9600, 0,  BW_FSK19,  8000);
 	//chErr |= UstawParametryModulacjiFSK(9600, 0,  BW_FSK39,  16000);	//9600bps, bez shapingu, pasmo 39k, dewiacja 16k
 
 	//7. Enable RxDone and timeout interrupts by configuring IRQ with Cfg_DioIrq().
@@ -851,7 +900,7 @@ uint8_t WlaczObiorCiaglyGFSK(void)
 		//– Check received packet error status (header error, crc error) with Get_IrqStatus().
 		//– When a valid packet is received, read the receive start buffer pointer and received	payload length with Get_RxBufferStatus().
 		//– Read the received payload data from the receive data buffer with Read_Buffer().
-		//chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, 0, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);
+		//chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, ADR_BUF_ODB, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);
 	}
 
 
@@ -860,25 +909,29 @@ uint8_t WlaczObiorCiaglyGFSK(void)
 		sRozmiar = 0;
 		switch (chStanProtokolu)
 		{
-		case RP_ODEBR_DANE:  	sRozmiar = sprintf((char*)chBuforUart, "Odebrano dane:");
-		  for (uint8_t n=0; n<10; n++)
-		  {
-			sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, " %d,", chBuforOdbiorczy[n]);
-			sRozmiar += sRozmiar2;
-		  }
-		  sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, "\n\r");
-		  sRozmiar += sRozmiar2;
-		  break;
+		case RP_ODEBR_DANE:
+			PobierzStatusBufora(&chStatus, &chIloscOdebrana, &chWskaznikDanych);
+			sRozmiar = sprintf((char*)chBuforUart, "Odebrano dane[%d]:", chIloscOdebrana);
+			chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, ADR_BUF_ODB, chBuforOdbiorczy, chIloscOdebrana);	//odczytaj bufor
 
-		case RP_ODEBR_SYNC:	sRozmiar = sprintf((char*)chBuforUart, "Odebrano sync\r\n");	  break;
-		case RP_ODEBR_NAGL:	sRozmiar = sprintf((char*)chBuforUart, "Odebrano naglowek\r\n");	  break;
-		case RP_ODEBR_PREAMB:	sRozmiar = sprintf((char*)chBuforUart, "Odebrano preamule\r\n");	  break;
-		case RP_BLAD_NAGL:	sRozmiar = sprintf((char*)chBuforUart, "Blad naglowka\r\n");	  break;
-		case RP_BLAD_CRC:		sRozmiar = sprintf((char*)chBuforUart, "Blad CRC\r\n");	  break;
-		case RP_TIMEOUT:		sRozmiar = sprintf((char*)chBuforUart, "Timeout\r\n");	  break;
-		case RP_CAD:			sRozmiar = sprintf((char*)chBuforUart, "CAD\r\n");	  break;
-		case RP_HOP_LR_FHSS:	sRozmiar = sprintf((char*)chBuforUart, "HOP_LR_FHSS\r\n");	  break;
-		  break;
+			for (uint8_t n=0; n<10; n++)
+			{
+				sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, " %d,", chBuforOdbiorczy[chWskaznikDanych + n]);
+				sRozmiar += sRozmiar2;
+			}
+			sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, "\n\r");
+			sRozmiar += sRozmiar2;
+			break;
+
+			case RP_ODEBR_SYNC:	sRozmiar = sprintf((char*)chBuforUart, "Odebrano sync\r\n");	  break;
+			case RP_ODEBR_NAGL:	sRozmiar = sprintf((char*)chBuforUart, "Odebrano naglowek\r\n");	  break;
+			case RP_ODEBR_PREAMB:	sRozmiar = sprintf((char*)chBuforUart, "Odebrano preamule\r\n");	  break;
+			case RP_BLAD_NAGL:	sRozmiar = sprintf((char*)chBuforUart, "Blad naglowka\r\n");	  break;
+			case RP_BLAD_CRC:		sRozmiar = sprintf((char*)chBuforUart, "Blad CRC\r\n");	  break;
+			case RP_TIMEOUT:		sRozmiar = sprintf((char*)chBuforUart, "Timeout\r\n");	  break;
+			case RP_CAD:			sRozmiar = sprintf((char*)chBuforUart, "CAD\r\n");	  break;
+			case RP_HOP_LR_FHSS:	sRozmiar = sprintf((char*)chBuforUart, "HOP_LR_FHSS\r\n");	  break;
+			break;
 		}
 		if (sRozmiar)
 		  chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
@@ -917,26 +970,34 @@ uint8_t WyslijRamkeGFSK(void)
 	//str 204
 	//The sub-GHz radio can be set in LoRa, (G)MSK or (G)FSK transmit operation mode with the following steps:
 	//1. Define the location of the transmit payload data in the data buffer, with Set_BufferBaseAddress().
-	chErr = UstawAdresyBuforow(ROZMIAR_BUFORA_ODBIORCZEGO, 0x00);	//(Tx, Rx)
+	chErr = UstawAdresyBuforow(ADR_BUF_NAD, ADR_BUF_ODB);	//(Tx, Rx)
 
 	//2. Write the payload data to the transmit data buffer with Write_Buffer().
 	for (uint8_t n=0; n<ROZMIAR_BUFORA_NADAWCZEGO; n++)
-		chBuforNadawczy[n] = n;
-	chErr |= HAL_SUBGHZ_WriteBuffer(&hsubghz, 0, chBuforNadawczy, ROZMIAR_BUFORA_NADAWCZEGO);	//zapełnij danymi
-	chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, 0, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);	//testuj czy się zapisało
+		chBuforNadawczy[n] = 0x00;
+	/*for (uint8_t n=0; n<ROZMIAR_BUFORA_NADAWCZEGO / 2; n++)
+	{
+		chBuforNadawczy[2*n+0] = 0xAA;
+		chBuforNadawczy[2*n+1] = 0x55;
+	}*/
+	chErr |= HAL_SUBGHZ_WriteBuffer(&hsubghz, ADR_BUF_NAD, chBuforNadawczy, ROZMIAR_BUFORA_NADAWCZEGO);	//zapełnij danymi
+	//chErr |= HAL_SUBGHZ_WriteBuffer(&hsubghz, ADR_BUF_ODB, chBuforOdbiorczy, ROZMIAR_BUFORA_NADAWCZEGO);	//zapełnij danymi
+
+	//for (uint8_t n=0; n<ROZMIAR_BUFORA_ODBIORCZEGO; n++)
+		//chBuforOdbiorczy[n] = 0;
+	//chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, ADR_BUF_NAD, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);	//testuj czy się zapisało
 
 	//3. Select the packet type (generic or LoRa) with Set_PacketType().
 	chErr |= UstawTypPakietu(PAKIET_FSK);
 
 	//4. Define the frame format with Set_PacketParams().
-	chErr |= UstawParametryPakietowGFSK(128, 4, 120);
-
+	chErr |= UstawParametryPakietowGFSK(64, 4, 20);	//sDlugPreamb, chSyncWordlLength, chPayloadLenght
 
 	//5. Define synchronization word in the associated packet type SUBGHZ_xSYNCR(n) with Write_Register().
 	chErr = HAL_SUBGHZ_WriteRegisters(&hsubghz, SUBGHZ_GSYNCR0, SyncWord, 4);	//SUBGHZ_GSYNCR0
 
 	//6. Define the RF frequency with Set_RfFrequency().
-	chErr |= UstawCzestotliwoscPLL(FREQ_GFSK + chLicznikRamek);
+	chErr |= UstawCzestotliwoscPLL(FREQ_GFSK);
 
 	//7. Define the PA configuration with Set_PaConfig().
 	//chErr = UstawParametryNadajnika(1, 0, 1);	//tabela str184 moc: +10dBm
@@ -946,9 +1007,10 @@ uint8_t WyslijRamkeGFSK(void)
 	chErr |= UstawMocNadajnika(0x0E, 4);
 
 	//9. Define the modulation parameters with Set_ModulationParams().
-	chErr = UstawParametryModulacjiFSK(1200, 0,  BW_FSK4,  2000);
+	//chErr = UstawParametryModulacjiFSK(1200, 0,  BW_FSK4,  2000);
 	//chErr |= UstawParametryModulacjiFSK(9600, 0,  BW_FSK39,  16000);	//9600bps, bez shapingu, pasmo 39k, dewiacja 16k
-	//chErr = UstawParametryModulacjiFSK(9600, 0,  BW_FSK19,  8000);
+	chErr = UstawParametryModulacjiFSK(9600, 0,  BW_FSK19,  8000);
+
 
 	//10. Enable TxDone and timeout interrupts by configuring IRQ with Cfg_DioIrq().
 	chErr |= UstawPrzerwnie(IRQ_TX_DONE + IRQ_TIMEOUT + IRQ_SYNC_DET + IRQ_CAD_DETECT + IRQ_CAD_DONE, IRQ_TX_DONE, IRQ_TIMEOUT + IRQ_CAD_DETECT + IRQ_CAD_DONE, IRQ_SYNC_DET);
@@ -961,7 +1023,7 @@ uint8_t WyslijRamkeGFSK(void)
 	//b) On a timeout interrupt, the transmission is timeout.
 	sRozmiar = sprintf((char*)chBuforUart, "Wyslano ramke %d\r\n", chLicznikRamek++);
 	chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
-	HAL_Delay(50);
+	HAL_Delay(500);
 	BSP_LED_Toggle(LED_BLUE);
 	//13. Clear interrupt with Clr_IrqStatus().
 	chErr |= KasujPrzerwnie(IRQ_TX_DONE + IRQ_TIMEOUT + IRQ_SYNC_DET);
@@ -994,7 +1056,7 @@ uint8_t WlaczObiorLoRa(void)
 	//Lista operacji aby przejsć w tryb RX str 205
 	//The sub-GHz radio can be set in LoRa or (G)FSK receive operation mode with the following steps:
 	//1. Define the location where the received payload data must be stored in the data buffer, with Set_BufferBaseAddress().
-	chErr = UstawAdresyBuforow(0x80, 0x00);	//(Tx, Rx)
+	chErr = UstawAdresyBuforow(ADR_BUF_NAD, ADR_BUF_ODB);	//(Tx, Rx)
 
 	//2. Select the packet type (generic or LoRa) with Set_PacketType().
 	chErr = UstawTypPakietu(PAKIET_LORA);
@@ -1031,7 +1093,7 @@ uint8_t WlaczObiorLoRa(void)
 	//– When a valid packet is received, read the receive start buffer pointer and received	payload length with Get_RxBufferStatus().
 	//– Read the received payload data from the receive data buffer with Read_Buffer().
 		chErr |= ZmierzRSSI(&chStatus, &chRssi);
-		chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, 0, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);
+		chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, ADR_BUF_ODB, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);
 	}
 
 	//b) On a timeout interrupt, the reception is timed out.
@@ -1099,7 +1161,7 @@ uint8_t WyslijRamkeLoRa(void)
 	//str 204
 	//The sub-GHz radio can be set in LoRa, (G)MSK or (G)FSK transmit operation mode with the following steps:
 	//1. Define the location of the transmit payload data in the data buffer, with Set_BufferBaseAddress().
-	chErr = UstawAdresyBuforow(ROZMIAR_BUFORA_ODBIORCZEGO, 0x00);	//(Tx, Rx)
+	chErr = UstawAdresyBuforow(ADR_BUF_NAD, ADR_BUF_ODB);	//(Tx, Rx)
 
 	//2. Write the payload data to the transmit data buffer with Write_Buffer().
 	for (uint8_t n=0; n<ROZMIAR_BUFORA_NADAWCZEGO; n++)
@@ -1204,8 +1266,8 @@ uint8_t NadawajPrembule(uint32_t nCzestotliwosc, uint32_t czas_ms)
 	HAL_StatusTypeDef chErr;
 
 	//UstawParametryModulacjiLoRa(ROZPROSZ5, BW_LORA52, 0, 0);
-	//UstawParametryModulacjiFSK(9600, 0,  BW_FSK19,  8000);
-	UstawParametryModulacjiFSK(9600, 0,  BW_FSK39,  16000);
+	UstawParametryModulacjiFSK(9600, 0,  BW_FSK19,  8000);
+	//UstawParametryModulacjiFSK(9600, 0,  BW_FSK39,  16000);
 	//UstawParametryModulacjiFSK(9600, 0,  BW_FSK78,  32000);
 	//UstawParametryModulacjiFSK(19200, 0,  BW_FSK156,  64000);
 
