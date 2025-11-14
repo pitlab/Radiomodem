@@ -113,12 +113,15 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	  //SkanujPasmo();
-	  //WlaczObior();
+
+	  WlaczObiorGFSK(1000000);	//timeout [us] = 1s
+	  //WlaczObiorCiaglyGFSK();
+	  //WyslijRamkeGFSK();
+
 	  //WlaczObiorLoRa();
 	  //WyslijRamkeLoRa();
-	  //WyslijRamkeGFSK();
-	  WlaczObiorGFSK();
-	  //NadawajNosna(FREQ_LORA, 100);
+
+	  //NadawajNosna(FREQ_LORA, 500);
 	  //NadawajPrembule(FREQ_LORA, 100);
   }
   /* USER CODE END 3 */

@@ -136,7 +136,7 @@ int main(void)
    // BSP_LED_Toggle(LED_BLUE);
     HAL_Delay(delay);
 
-    BSP_LED_Toggle(LED_GREEN);
+    //BSP_LED_Toggle(LED_GREEN);
     HAL_Delay(delay);
 
     //BSP_LED_Toggle(LED_RED);

@@ -116,6 +116,8 @@
 #define FREQ_LORA		868000000
 
 #define TIMEOUT_ODB			200
+#define ODBIOR_CIAGLY		0xFFFFFF	//wartość timoutu właczajaca odbiór ciagły
+
 union u32_8_t
 {
 	uint32_t nDane32;
@@ -149,7 +151,8 @@ uint8_t PobierzStatus(uint8_t *chStatus);
 uint8_t UstawPrzerwnie(uint16_t sGlobalEnable, uint16_t sIRQ1En, uint16_t sIRQ2En, uint16_t sIRQ3En);
 uint8_t KasujPrzerwnie(uint16_t sPrzerwanie);
 uint8_t SkanujPasmo(void);
-uint8_t WlaczObiorGFSK(void);
+uint8_t WlaczObiorCiaglyGFSK(void);
+uint8_t WlaczObiorGFSK(uint32_t nTimeout);
 uint8_t WyslijRamkeGFSK(void);
 uint8_t WyslijRamkeLoRa(void);
 uint8_t WlaczObiorLoRa(void);
