@@ -114,10 +114,10 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  //SkanujPasmo();
 	  //WlaczObior();
-	  WlaczObiorLoRa();
+	  //WlaczObiorLoRa();
 	  //WyslijRamkeLoRa();
 	  //WyslijRamkeGFSK();
-	  //WlaczObiorGFSK();
+	  WlaczObiorGFSK();
 	  //NadawajNosna(FREQ_LORA, 100);
 	  //NadawajPrembule(FREQ_LORA, 100);
   }

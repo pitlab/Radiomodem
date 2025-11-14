@@ -14,6 +14,10 @@
 #define ROZMIAR_POLECENIA	4
 #define ROZMIAR_BUF_RSSI	81
 
+
+#define SUBGHZ_GSYNCR0	0x6C0	//rejestr na słowo synchronzacyjne [0]
+
+
 //typy pakietów
 #define PAKIET_FSK		0
 #define PAKIET_LORA		1
@@ -128,6 +132,7 @@ uint8_t UstawCzestotliwoscPLL(uint32_t nCzestotliwosc);
 uint8_t KalibrujZakresCzestotliwosci(uint16_t sCzestotliwoscDolna, uint16_t sCzestotliwoscGorna);
 uint8_t ZmierzRSSI(uint8_t* chStatus, int8_t* chRSSI);
 uint8_t UstawTypPakietu(uint8_t chTypPakietu);
+uint8_t UstawParametryPakietowGFSK(uint16_t sDlugPreamb, uint8_t chSyncWordlLength, uint8_t chPayloadLenght);
 uint8_t PobierzTypPakietu(uint8_t *chStatus, uint8_t *chTypPakietu);
 uint8_t UstawMocNadajnika(uint8_t chMoc, uint8_t chCzasNarastania);
 uint8_t UstawParametryNadajnika(uint8_t chWypelnienieCyklu, uint8_t HpMax, uint8_t chZakresMocy);

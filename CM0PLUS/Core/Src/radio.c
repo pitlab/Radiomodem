@@ -264,11 +264,9 @@ uint8_t ZmierzRSSI(uint8_t* chStatus, int8_t* chRSSI)
 //////////////////////////////////////////////////////////////////////////////////
 uint8_t UstawTypPakietu(uint8_t chTypPakietu)
 {
-	HAL_StatusTypeDef chErr;
-	uint8_t chBuforDanych = chTypPakietu;
+	uint8_t chBuforDanych = chTypPakietu & 0x03;
 
-	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_PACKETTYPE, &chBuforDanych, 1);
-	return chErr;
+	return  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_PACKETTYPE, &chBuforDanych, 1);
 }
 
 
@@ -305,13 +303,11 @@ uint8_t PobierzTypPakietu(uint8_t *chStatus, uint8_t *chTypPakietu)
 //////////////////////////////////////////////////////////////////////////////////
 uint8_t UstawMocNadajnika(uint8_t chMoc, uint8_t chCzasNarastania)
 {
-	HAL_StatusTypeDef chErr;
 	uint8_t chBuforDanych[2];
 
 	chBuforDanych[0] = chMoc;
 	chBuforDanych[1] = chCzasNarastania;
-	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_TXPARAMS, chBuforDanych, 2);
-	return chErr;
+	return HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_TXPARAMS, chBuforDanych, 2);
 }
 
 
@@ -347,11 +343,9 @@ uint8_t UstawParametryNadajnika(uint8_t chWypelnienieCyklu, uint8_t HpMax, uint8
 //////////////////////////////////////////////////////////////////////////////////
 uint8_t UstawTrybFallbaclk(uint8_t chTryb)
 {
-	HAL_StatusTypeDef chErr;
 	uint8_t chBuforDanych = chTryb;
 
-	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_TXFALLBACKMODE, &chBuforDanych, 1);
-	return chErr;
+	return HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_TXFALLBACKMODE, &chBuforDanych, 1);
 }
 
 
@@ -365,13 +359,11 @@ uint8_t UstawTrybFallbaclk(uint8_t chTryb)
 //////////////////////////////////////////////////////////////////////////////////
 uint8_t UstawAdresyBuforow(uint8_t chBufNad, uint8_t chBudOdb)
 {
-	HAL_StatusTypeDef chErr;
 	uint8_t chBuforDanych[2];
 
 	chBuforDanych[0] = chBufNad;
 	chBuforDanych[1] = chBudOdb;
-	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_BUFFERBASEADDRESS, chBuforDanych, 2);
-	return chErr;
+	return HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_BUFFERBASEADDRESS, chBuforDanych, 2);
 }
 
 
@@ -387,19 +379,19 @@ uint8_t UstawAdresyBuforow(uint8_t chBufNad, uint8_t chBudOdb)
 //////////////////////////////////////////////////////////////////////////////////
 uint8_t UstawParametryModulacjiFSK(uint32_t nPredkoscBit, uint8_t chKsztaltImpulsu, uint8_t chSzerokoscPasma, uint32_t nOdchylCzestotliwosci)
 {
-	HAL_StatusTypeDef chErr;
 	uint8_t chBuforDanych[7];
+	uint32_t nBitrate = (32 * 32000000) / nPredkoscBit;
+	uint32_t nFdev = (uint32_t)(((double)nOdchylCzestotliwosci * (1UL << 25)) / 32000000.0);
 
-	chBuforDanych[0] = (nPredkoscBit >> 16) & 0xFF;
-	chBuforDanych[1] = (nPredkoscBit >> 8) & 0xFF;
-	chBuforDanych[2] = (nPredkoscBit) & 0xFF;
+	chBuforDanych[0] = (nBitrate >> 16) & 0xFF;
+	chBuforDanych[1] = (nBitrate >> 8) & 0xFF;
+	chBuforDanych[2] = (nBitrate) & 0xFF;
 	chBuforDanych[3] = chKsztaltImpulsu & 0x0F;
 	chBuforDanych[4] = chSzerokoscPasma;
-	chBuforDanych[5] = (nOdchylCzestotliwosci >> 16) & 0xFF;
-	chBuforDanych[6] = (nOdchylCzestotliwosci >> 8) & 0xFF;
-	chBuforDanych[7] = (nOdchylCzestotliwosci) & 0xFF;
-	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_MODULATIONPARAMS, chBuforDanych, 8);
-	return chErr;
+	chBuforDanych[5] = (nFdev >> 16) & 0xFF;
+	chBuforDanych[6] = (nFdev >> 8) & 0xFF;
+	chBuforDanych[7] = (nFdev) & 0xFF;
+	return HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_MODULATIONPARAMS, chBuforDanych, 8);
 }
 
 
@@ -414,7 +406,6 @@ uint8_t UstawParametryModulacjiFSK(uint32_t nPredkoscBit, uint8_t chKsztaltImpul
 //////////////////////////////////////////////////////////////////////////////////
 uint8_t UstawParametryModulacjiLoRa(uint8_t chSpredingFactor, uint8_t chSzerokoscPasma, uint8_t chKorekcjaBledow, uint8_t chOptymalizacja)
 {
-	HAL_StatusTypeDef chErr;
 	uint8_t chBuforDanych[4];
 
 	chBuforDanych[0] = chSpredingFactor & 0x0F;
@@ -422,8 +413,7 @@ uint8_t UstawParametryModulacjiLoRa(uint8_t chSpredingFactor, uint8_t chSzerokos
 	chBuforDanych[2] = chKorekcjaBledow & 0x07;
 	chBuforDanych[3] = chOptymalizacja & 0x01;
 
-	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_MODULATIONPARAMS, chBuforDanych, 4);
-	return chErr;
+	return HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_MODULATIONPARAMS, chBuforDanych, 4);
 }
 
 
@@ -491,11 +481,8 @@ uint8_t PobierzStatusPakietu(uint8_t *chStatus, uint8_t *chStatusOdbioru, int8_t
 //////////////////////////////////////////////////////////////////////////////////
 uint8_t PobierzStatus(uint8_t *chStatus)
 {
-	HAL_StatusTypeDef chErr;
-
 	*chStatus = 0;
-	chErr =  HAL_SUBGHZ_ExecGetCmd(&hsubghz, RADIO_GET_STATUS, chStatus, 1);
-	return chErr;
+	return HAL_SUBGHZ_ExecGetCmd(&hsubghz, RADIO_GET_STATUS, chStatus, 1);
 }
 
 
@@ -508,10 +495,7 @@ uint8_t PobierzStatus(uint8_t *chStatus)
 //////////////////////////////////////////////////////////////////////////////////
 uint8_t UstawSleep(uint8_t chKonfig)
 {
-	HAL_StatusTypeDef chErr;
-
-	chErr =  HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_SLEEP, &chKonfig, 1);
-	return chErr;
+	return HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_SLEEP, &chKonfig, 1);
 }
 
 
@@ -563,18 +547,18 @@ uint8_t UstawCAD(void)
 // Parametry: na razie nic
 // Zwraca: kod błędu
 //////////////////////////////////////////////////////////////////////////////////
-uint8_t UstawParametryPakietow(uint8_t chTryb)
+uint8_t UstawParametryPakietowGFSK(uint16_t sDlugPreamb, uint8_t chSyncWordlLength, uint8_t chPayloadLenght)
 {
 	HAL_StatusTypeDef chErr;
 	uint8_t chKonfig[8] = {0};
 
-	chKonfig[0] = 8;	//bytes 2:1 bits 15:0 PbLength[15:0]: Preamble length in number of symbols
-	chKonfig[1] = 0;
+	chKonfig[0] = (sDlugPreamb >> 8) & 0xFF;	//bytes 2:1 bits 15:0 PbLength[15:0]: Preamble length in number of symbols
+	chKonfig[1] = (sDlugPreamb) & 0xFF;
 	chKonfig[2] = 5;	//bits 2:0 PbDetLength[2:0]: Preamble detection length in number of bit symbols: 0x0: preamble detection disabled, 0x4: 8-bit preamble detection, 0x5: 16-bit preamble detection, 0x6: 24-bit preamble detection, 0x7: 32-bit preamble detection
-	chKonfig[3] = 16;	//bits: 6:0 SyncWordLength[6:0]: Synchronization word length in number of bit symbols: 0x00 - 0x40: 0 to 64-bit synchronization word (synchronization word data defined in SUBGHZ_GSYNCR[0:7])
+	chKonfig[3] = chSyncWordlLength;	//bits: 6:0 SyncWordLength[6:0]: Synchronization word length in number of bit symbols: 0x00 - 0x40: 0 to 64-bit synchronization word (synchronization word data defined in SUBGHZ_GSYNCR[0:7])
 	chKonfig[4] = 0;	//bits: 1:0 AddrComp[1:0]: Address comparison/filtering, 0x0: address comparison/filtering disabled, 0x1: address comparison/filtering on node address, 0x2: address comparison/filtering on node and broadcast addresses
-	chKonfig[5] = 1;	//bit 0 PktType: Packet type definition: 0: Fixed payload length and header field not added to packet, 1: Variable payload length and header field added to packet
-	chKonfig[6] = 20;	//bits 7:0 PayloadLength[7:0]: Payload length in number of bytes 0x00- 0xFF: 0 to 255 bytes
+	chKonfig[5] = 0;	//bit 0 PktType: Packet type definition: 0: Fixed payload length and header field not added to packet, 1: Variable payload length and header field added to packet
+	chKonfig[6] = chPayloadLenght;	//bits 7:0 PayloadLength[7:0]: Payload length in number of bytes 0x00- 0xFF: 0 to 255 bytes
 	chKonfig[7] = 1;	//bits 2:0 CrcType[2:0]: CRC type definition The CRC initialization value is provided in SUBGHZ_GCRCINIRL and SUBGHZ_GCRCINIRH. The polynomial is defined in SUBGHZ_GCRCPOLRL and SUBGHZ_GCRCPOLRH.
 						//0x0: 1-byte CRC, 0x1: no CRC, 0x2: 2-byte CRC, 0x4: 1-byte inverted CRC, 0x6: 2-byte inverted CRC
 	chKonfig[8] = 0;	//bit 0 Whitening: Whitening enable. The whitening initial value is provided in WHITEINI[8:0]: 0: Whitening disabled, 1: Whitening enabled
@@ -703,6 +687,7 @@ uint8_t WlaczObiorGFSK(void)
 	uint8_t chStatus;
 	uint16_t sRozmiar, sRozmiar2;
 	uint8_t chStatusOdbioru;
+	uint8_t SyncWord[4] = {0xC1, 0x94, 0xC1, 0xC1};	//standardowy Semtech
 
 	BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_RX);
 
@@ -715,18 +700,19 @@ uint8_t WlaczObiorGFSK(void)
 	chErr = UstawTypPakietu(PAKIET_FSK);
 
 	//3. Define the frame format with Set_PacketParams().
-	chErr = UstawParametryPakietow(0);
+	chErr = UstawParametryPakietowGFSK(128, 4, 20);
+
 
 	//4. Define synchronization word in the associated packet type SUBGHZ_xSYNCR(n) with Write_Register().
-	for (int8_t n=0; n<8; n++)
-		chBuforUart[n] = 0x55;
-	chErr = HAL_SUBGHZ_WriteRegisters(&hsubghz, 0x6C0, chBuforUart, 8);	//SUBGHZ_GSYNCR0
+	chErr = HAL_SUBGHZ_WriteRegisters(&hsubghz, SUBGHZ_GSYNCR0, SyncWord, 4);	//SUBGHZ_GSYNCR0
 
 	//5. Define the RF frequency with Set_RfFrequency().
 	chErr = UstawCzestotliwoscPLL(FREQ_GFSK);
 
 	//6. Define the modulation parameters with Set_ModulationParams().
-	chErr = UstawParametryModulacjiFSK(6, 9, BW_FSK467, 1000000);
+	//chErr = UstawParametryModulacjiFSK(6, 9, BW_FSK467, 1000000);
+	chErr = UstawParametryModulacjiFSK(9600, 0,  BW_FSK19,  8000);
+	//chErr |= UstawParametryModulacjiFSK(9600, 0,  BW_FSK39,  16000);	//9600bps, bez shapingu, pasmo 39k, dewiacja 16k
 
 	//7. Enable RxDone and timeout interrupts by configuring IRQ with Cfg_DioIrq().
 	//chErr = UstawPrzerwnie(IRQ_RX_DONE + IRQ_TIMEOUT + IRQ_CAD_DETECT + IRQ_CAD_DETECT + IRQ_PREAMB_DET + IRQ_SYNC_DET + IRQ_CRC_ERROR, IRQ_RX_DONE, IRQ_TIMEOUT + IRQ_CRC_ERROR, IRQ_CAD_DETECT + IRQ_CAD_DETECT + IRQ_PREAMB_DET + IRQ_SYNC_DET);
@@ -737,13 +723,15 @@ uint8_t WlaczObiorGFSK(void)
 	//– In single mode (with or without timeout), when the reception is finished, the sub-GHz radio enters automatically the Standby mode.
 	//– In listening mode, the sub-GHz radio repeatedly switches between RX single with timeout mode and Sleep mode.
 	chErr |= UstawTrybOdbioru(1000);	//timeout [us]
-
-	//9. Wait for sub-GHz radio IRQ interrupt and read the interrupt status with Get_IrqStatus():
-	//a) On a RxDone interrupt, a packet is received:
-	//– Check received packet error status (header error, crc error) with Get_IrqStatus().
-	//– When a valid packet is received, read the receive start buffer pointer and received	payload length with Get_RxBufferStatus().
-	//– Read the received payload data from the receive data buffer with Read_Buffer().
-	chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, 0, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);
+	if (chErr == ERR_OK)
+	{
+		//9. Wait for sub-GHz radio IRQ interrupt and read the interrupt status with Get_IrqStatus():
+		//a) On a RxDone interrupt, a packet is received:
+		//– Check received packet error status (header error, crc error) with Get_IrqStatus().
+		//– When a valid packet is received, read the receive start buffer pointer and received	payload length with Get_RxBufferStatus().
+		//– Read the received payload data from the receive data buffer with Read_Buffer().
+		chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, 0, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);
+	}
 	//b) On a timeout interrupt, the reception is timed out.
 	//10. Clear interrupts with Clr_IrqStatus().
 	chErr = KasujPrzerwnie(IRQ_RX_DONE + IRQ_TIMEOUT + IRQ_CAD_DETECT);
@@ -786,7 +774,7 @@ uint8_t WlaczObiorGFSK(void)
 	chErr |= ZmierzRSSI(&chStatus, &chRssi);
 	chErr = PobierzStatusPakietu(&chStatus, &chStatusOdbioru, &chRssiSync, &chRssiPakietu);
 
-	sRozmiar = sprintf((char*)chBuforUart, "RSSI2B @ %dHz: %d dBm, RSync:%d, Status: 0x%.2X, RSSI Pakietu: %d\r\n", FREQ_GFSK, chRssi, chRssiSync, chStatus, chRssiPakietu);
+	sRozmiar = sprintf((char*)chBuforUart, "GFSK RSSI @ %dHz: %d dBm, RSync:%d, Status: 0x%.2X, RSSI Pakietu: %d\r\n", FREQ_GFSK, chRssi, chRssiSync, chStatus, chRssiPakietu);
 	chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
 	return ERR_OK;
 }
@@ -802,6 +790,7 @@ uint8_t WyslijRamkeGFSK(void)
 {
 	uint16_t sRozmiar;
 	uint8_t chErr;
+	uint8_t SyncWord[4] = {0xC1, 0x94, 0xC1, 0xC1};	//standardowy Semtech
 
 	BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_RFO_HP);
 
@@ -820,12 +809,10 @@ uint8_t WyslijRamkeGFSK(void)
 	chErr |= UstawTypPakietu(PAKIET_FSK);
 
 	//4. Define the frame format with Set_PacketParams().
-	chErr |= UstawParametryPakietow(0);
+	chErr |= UstawParametryPakietowGFSK(128, 4, 20);
 
 	//5. Define synchronization word in the associated packet type SUBGHZ_xSYNCR(n) with Write_Register().
-	for (int8_t n=0; n<8; n++)
-		chBuforUart[n] = 0x55;
-	chErr |= HAL_SUBGHZ_WriteRegisters(&hsubghz, 0x6C0, chBuforUart, 8);	//SUBGHZ_GSYNCR0
+	chErr = HAL_SUBGHZ_WriteRegisters(&hsubghz, SUBGHZ_GSYNCR0, SyncWord, 4);	//SUBGHZ_GSYNCR0
 
 	//6. Define the RF frequency with Set_RfFrequency().
 	chErr |= UstawCzestotliwoscPLL(FREQ_GFSK + chLicznikRamek);
@@ -838,7 +825,8 @@ uint8_t WyslijRamkeGFSK(void)
 	chErr |= UstawMocNadajnika(0x0E, 4);
 
 	//9. Define the modulation parameters with Set_ModulationParams().
-	chErr |= UstawParametryModulacjiFSK(100000, 9, 0x09, 0xFF);	//100kbps, środkowy shaping, max pasmo, dewiacja od czapy
+	//chErr |= UstawParametryModulacjiFSK(9600, 0,  BW_FSK39,  16000);	//9600bps, bez shapingu, pasmo 39k, dewiacja 16k
+	chErr = UstawParametryModulacjiFSK(9600, 0,  BW_FSK19,  8000);
 
 	//10. Enable TxDone and timeout interrupts by configuring IRQ with Cfg_DioIrq().
 	chErr |= UstawPrzerwnie(IRQ_TX_DONE + IRQ_TIMEOUT + IRQ_SYNC_DET + IRQ_CAD_DETECT + IRQ_CAD_DONE, IRQ_TX_DONE, IRQ_TIMEOUT + IRQ_CAD_DETECT + IRQ_CAD_DONE, IRQ_SYNC_DET);
@@ -890,7 +878,7 @@ uint8_t WyslijRamkeLoRa(void)
 	chErr |= UstawTypPakietu(PAKIET_LORA);
 
 	//4. Define the frame format with Set_PacketParams().
-	chErr |= UstawParametryPakietow(0);
+	//chErr |= UstawParametryPakietow(0);
 
 	//5. Define synchronization word in the associated packet type SUBGHZ_xSYNCR(n) with Write_Register().
 	for (int8_t n=0; n<8; n++)
@@ -964,7 +952,7 @@ uint8_t WlaczObiorLoRa(void)
 	chErr = UstawTypPakietu(PAKIET_LORA);
 
 	//3. Define the frame format with Set_PacketParams().
-	chErr = UstawParametryPakietow(0);
+	//chErr = UstawParametryPakietow(0);
 
 	//4. Define synchronization word in the associated packet type SUBGHZ_xSYNCR(n) with Write_Register().
 	for (int8_t n=0; n<8; n++)
@@ -1102,6 +1090,14 @@ uint8_t NadawajPrembule(uint32_t nCzestotliwosc, uint32_t czas_ms)
 	HAL_StatusTypeDef chErr;
 	uint8_t chBuforDanych[4];
 	uint32_t nRejCzest;
+
+	//UstawParametryModulacjiLoRa(ROZPROSZ5, BW_LORA52, 0, 0);
+	//UstawParametryModulacjiFSK(9600, 0,  BW_FSK19,  8000);
+	UstawParametryModulacjiFSK(9600, 0,  BW_FSK39,  16000);
+	//UstawParametryModulacjiFSK(9600, 0,  BW_FSK78,  32000);
+	//UstawParametryModulacjiFSK(19200, 0,  BW_FSK156,  64000);
+
+
 
 	nRejCzest = (uint32_t)(((double)nCzestotliwosc * (1UL << 25)) / 32000000.0);
 	chBuforDanych[0] = (nRejCzest >> 24) & 0xFF;
