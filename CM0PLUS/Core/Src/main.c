@@ -17,11 +17,11 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include <radio_wlasne.h>
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "radio.h"
 #include "stm32wlxx_nucleo_radio.h"
 /* USER CODE END Includes */
 
@@ -41,16 +41,16 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-extern uint8_t chBuforUart[];
+
 COM_InitTypeDef BspCOMInit;
-//static uint32_t delay = 250;
+static uint32_t delay = 250;
 
 SUBGHZ_HandleTypeDef hsubghz;
 
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-
+extern uint8_t chBuforUart[];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -115,10 +115,9 @@ int main(void)
 	  //SkanujPasmo();
 
 	  WlaczObiorGFSK(1000000);	//timeout [us] = 1s
-	  //WlaczObiorCiaglyGFSK();
 	  //WyslijRamkeGFSK();
 
-	  //WlaczObiorLoRa();
+	  //WlaczObiorLoRa(1000000);
 	  //WyslijRamkeLoRa();
 
 	  //NadawajNosna(FREQ_LORA, 500);

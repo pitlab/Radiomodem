@@ -5,8 +5,8 @@
  *      Author //Piotr
  */
 
-#ifndef INC_RADIO_H_
-#define INC_RADIO_H_
+#ifndef INC_RADIO_WLASNE_H_
+#define INC_RADIO_WLASNE_H_
 #include "stm32wlxx_hal.h"
 #include "stm32wlxx_hal_subghz.h"
 
@@ -14,9 +14,14 @@
 #define ROZMIAR_POLECENIA	4
 #define ROZMIAR_BUF_RSSI	81
 
+#define WIELOMIAN_CRC_CCITT	0x1021
+#define ZIARNO_CRC_CCITT	0x1D0F
 
-#define SUBGHZ_GSYNCR0	0x6C0	//rejestr na słowo synchronzacyjne [0]
-
+#define SUBGHZ_GSYNCR0		0x6C0	//rejestr na słowo synchronzacyjne [0]
+#define SUBGHZ_GCRCINIRH	0x6BC	//
+#define SUBGHZ_GCRCINIRL	0x6BD	//
+#define SUBGHZ_GCRCPOLRH	0x6BE	//CRC initial polynomial
+#define SUBGHZ_GCRCPOLRL	0x6BF
 
 //typy pakietów
 #define PAKIET_FSK		0
@@ -33,6 +38,10 @@
 #define ROZMIAR_BUFORA_ODBIORCZEGO	128
 #define ADR_BUF_ODB		0x00
 #define ADR_BUF_NAD		0x80
+
+//shaping GFSK
+#define FSK_SHAPE_BT05	0x09
+
 
 //szerokość pasma
 #define BW_FSK4 	0x1F	//4.8 kHz DSB
@@ -77,6 +86,7 @@
 #define ROZPROSZ10	0x0A	//Spreading factor 10
 #define ROZPROSZ11	0x0B	//Spreading factor 11
 #define ROZPROSZ12	0x0C	//Spreading factor 12
+
 
 
 //definicje trybów pracy
@@ -136,6 +146,7 @@ uint8_t UstawCzestotliwoscPLL(uint32_t nCzestotliwosc);
 uint8_t KalibrujZakresCzestotliwosci(uint16_t sCzestotliwoscDolna, uint16_t sCzestotliwoscGorna);
 uint8_t ZmierzRSSI(uint8_t* chStatus, int8_t* chRSSI);
 uint8_t UstawTypPakietu(uint8_t chTypPakietu);
+uint8_t UstawParametryPakietowLoRa(uint16_t sDlugPreamb, uint8_t chStalyNagl, uint8_t chPayloadLenght, uint8_t chWlaczCRC, uint8_t chInvertIQ);
 uint8_t UstawParametryPakietowGFSK(uint16_t sDlugPreamb, uint8_t chSyncWordlLength, uint8_t chPayloadLenght);
 uint8_t PobierzTypPakietu(uint8_t *chStatus, uint8_t *chTypPakietu);
 uint8_t UstawMocNadajnika(uint8_t chMoc, uint8_t chCzasNarastania);
@@ -151,15 +162,16 @@ uint8_t UstawSleep(uint8_t chKonfig);
 uint8_t UstawStandby(uint8_t chKonfig);
 uint8_t UstawCAD(void);
 uint8_t PobierzStatus(uint8_t *chStatus);
+uint8_t PobierzStatusPrzerwania(uint8_t *chStatus, uint16_t *sStatusIRQ);
 uint8_t UstawPrzerwnie(uint16_t sGlobalEnable, uint16_t sIRQ1En, uint16_t sIRQ2En, uint16_t sIRQ3En);
 uint8_t KasujPrzerwnie(uint16_t sPrzerwanie);
+
 uint8_t SkanujPasmo(void);
-uint8_t WlaczObiorCiaglyGFSK(void);
 uint8_t WlaczObiorGFSK(uint32_t nTimeout);
 uint8_t WyslijRamkeGFSK(void);
 uint8_t WyslijRamkeLoRa(void);
-uint8_t WlaczObiorLoRa(void);
+uint8_t WlaczObiorLoRa(uint32_t nTimeout);
 uint8_t NadawajNosna(uint32_t nCzestotliwosc, uint32_t czas_ms);
 uint8_t NadawajPrembule(uint32_t nCzestotliwosc, uint32_t czas_ms);
 
-#endif /* INC_RADIO_H_ */
+#endif /* INC_RADIO_WLASNE_H_ */
