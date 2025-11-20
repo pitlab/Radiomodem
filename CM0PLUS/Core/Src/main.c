@@ -51,6 +51,8 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 extern uint8_t chBuforUart[];
+uint32_t nLosoweOpoznienie;
+uint8_t chBlad;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -101,20 +103,34 @@ int main(void)
   {
 	  uint16_t sRozmiar = sprintf((char*)chBuforUart, "TXCO wspierane 4\r\n");
 	  HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
+	  sRozmiar = delay;	//zablokuj warning nieużywanej zmiennej
   }
+
+  nLosoweOpoznienie = 10;		//Docelowo użyć sprzętowego generatora liczb losowych
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  HAL_Delay(nLosoweOpoznienie);
   while (1)
   {
+	  //Czekaj sekundę na odbiór
+	  chBlad = WlaczObiorGFSK(1000000);	//timeout [us] = 1s
+	  //LEDy są włączane w callbackach
+	  BSP_LED_Off(LED_RED);
+	  BSP_LED_Off(LED_GREEN);
+
+	  //wyślij dane
+	  BSP_LED_On(LED_BLUE);
+	  WyslijRamkeGFSK();
+	  BSP_LED_Off(LED_BLUE);
 
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
 	  //SkanujPasmo();
 
-	  WlaczObiorGFSK(1000000);	//timeout [us] = 1s
+	  //WlaczObiorGFSK(1000000);	//timeout [us] = 1s
 	  //WyslijRamkeGFSK();
 
 	  //WlaczObiorLoRa(1000000);

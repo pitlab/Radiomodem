@@ -113,11 +113,10 @@ uint8_t WlaczObiorGFSK(uint32_t nTimeout)
 
 	BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_RX);
 
-	//Lista operacji aby przejsć w tryb RX str 205
+	//Lista operacji aby przejsć w tryb RX RM0453 Rev 6 str 205
 	//The sub-GHz radio can be set in LoRa or (G)FSK receive operation mode with the following steps:
 	//1. Define the location where the received payload data must be stored in the data buffer, with Set_BufferBaseAddress().
 	chErr = UstawAdresyBuforow(ADR_BUF_NAD, ADR_BUF_ODB);	//(Tx, Rx)
-	//chErr = UstawAdresyBuforow(ADR_BUF_ODB, ADR_BUF_NAD);	//(Rx, Tx)
 
 	//2. Select the packet type (generic or LoRa) with Set_PacketType().
 	chErr = UstawTypPakietu(PAKIET_FSK);
@@ -139,8 +138,6 @@ uint8_t WlaczObiorGFSK(uint32_t nTimeout)
 	chErr |= UstawParametryModulacjiFSK(50000, FSK_SHAPE_BT05,  BW_FSK58,  25000);		//z przykładu PinPong
 
 
-
-
 	//7. Enable RxDone and timeout interrupts by configuring IRQ with Cfg_DioIrq().
 	//chErr = UstawPrzerwnie(IRQ_RX_DONE + IRQ_TIMEOUT + IRQ_CAD_DETECT + IRQ_CAD_DETECT + IRQ_PREAMB_DET + IRQ_SYNC_DET + IRQ_CRC_ERROR, IRQ_RX_DONE, IRQ_TIMEOUT + IRQ_CRC_ERROR, IRQ_CAD_DETECT + IRQ_CAD_DETECT + IRQ_PREAMB_DET + IRQ_SYNC_DET);
 	UstawPrzerwnie(0x3FF, 0x3FF, 0, 0);
@@ -149,10 +146,7 @@ uint8_t WlaczObiorGFSK(uint32_t nTimeout)
 	//– When in continuous receiver mode, the sub-GHz radio remains in RX mode to look for packets until stopped with Set_Standby().
 	//– In single mode (with or without timeout), when the reception is finished, the sub-GHz radio enters automatically the Standby mode.
 	//– In listening mode, the sub-GHz radio repeatedly switches between RX single with timeout mode and Sleep mode.
-	//BSP_LED_On(LED_GREEN);
-
 	chErr |= UstawTrybOdbioru(nTimeout);	//timeout [us]
-	//BSP_LED_Off(LED_GREEN);
 
 	sTimeout = 0;
 	do
@@ -178,13 +172,13 @@ uint8_t WlaczObiorGFSK(uint32_t nTimeout)
 			chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, ADR_BUF_NAD, chBuforNadawczy, ROZMIAR_BUFORA_NADAWCZEGO);	//odczytaj bufor
 
 			chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, ADR_BUF_ODB, chBuforOdbiorczy + chWskaznikDanych, chIloscOdebrana);	//odczytaj bufor
-			for (uint8_t n=0; n<chIloscOdebrana; n++)
+			/*for (uint8_t n=0; n<chIloscOdebrana; n++)
 			{
 				sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, " %.2X,", chBuforOdbiorczy[chWskaznikDanych + n]);
 				sRozmiar += sRozmiar2;
 			}
 			sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, "\n\r");
-			sRozmiar += sRozmiar2;
+			sRozmiar += sRozmiar2;*/
 			KasujPrzerwnie(IRQ_TX_DONE);
 			break;
 
@@ -200,36 +194,23 @@ uint8_t WlaczObiorGFSK(uint32_t nTimeout)
 		case RP_HOP_LR_FHSS:	sRozmiar = sprintf((char*)chBuforUart, "%d: HOP_LR_FHSS\r\n", sTimeout);	break;
 		  break;
 		}
-		if (sRozmiar)
-			chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
+		//if (sRozmiar)
+			//chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
 		sTimeout++;
 
 		//10. Clear interrupts with Clr_IrqStatus().
 		//chErr = KasujPrzerwnie(IRQ_RX_DONE + IRQ_TIMEOUT + IRQ_CAD_DETECT);
 		//chErr = KasujPrzerwnie(sStatusPrzerwania);
 
-		/*/drukuj cały bufor odbiorczy wierszami 16x16 danych
-		sRozmiar = sprintf((char*)chBuforUart, "Zawartość bufora obiorczego:");
-		chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, ADR_BUF_ODB, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);	//odczytaj bufor
-		for (uint8_t w=0; w<8; w++)
-		{
-			for (uint8_t n=0; n<16; n++)
-			{
-				sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, " %.2X,", chBuforOdbiorczy[w * 16 + n]);
-				sRozmiar += sRozmiar2;
-			}
-			sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, "\n\r");
-			sRozmiar += sRozmiar2;
-			chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
-			sRozmiar = 0;
-		}*/
 	}
 	while ((chStanProtokolu == 0) && (sTimeout < 5000));
+	if (sTimeout < 5000)
+		chErr = ERR_TIMEOUT;
 
 	chErr |= PobierzBlad(&chStatus, &chBlad);
 	chErr |= PobierzStatusPakietu(&chStatus, &chStatusOdbioru, &chRssiSync, &chRssiPakietu);
-	sRozmiar = sprintf((char*)chBuforUart, "GFSK @ %dHz: RSSI Sync:%d dBm, RSSI Pakietu: %d dBm, Status: 0x%.2X Czas: %d, Blad: %.2X\r\n", FREQ_GFSK, chRssiSync, chRssiPakietu, chStatus, sTimeout, chBlad);
-	chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
+	sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, "GFSK @ %dHz: RSSI Sync:%d dBm, RSSI Pakietu: %d dBm, Status: 0x%.2X\r\n", FREQ_GFSK, chRssiSync, chRssiPakietu, chStatus);
+	chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar2 + sRozmiar, 10);
 	//11. Optionally, send a Set_Sleep() command to force the sub-GHz radio in Sleep mode.
 	chErr |= UstawSleep(0);
 	return chErr;
@@ -251,7 +232,7 @@ uint8_t WyslijRamkeGFSK(void)
 
 	BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_RFO_HP);
 
-	//str 204
+	//RM0453 Rev 6 str 204
 	//The sub-GHz radio can be set in LoRa, (G)MSK or (G)FSK transmit operation mode with the following steps:
 	//1. Define the location of the transmit payload data in the data buffer, with Set_BufferBaseAddress().
 	chErr = UstawAdresyBuforow(ADR_BUF_NAD, ADR_BUF_ODB);	//(Tx, Rx)
@@ -259,13 +240,8 @@ uint8_t WyslijRamkeGFSK(void)
 	//2. Write the payload data to the transmit data buffer with Write_Buffer().
 	for (uint8_t n=0; n<ROZMIAR_BUFORA_NADAWCZEGO; n++)
 		chBuforNadawczy[n] = n;
-	/*for (uint8_t n=0; n<ROZMIAR_BUFORA_NADAWCZEGO / 2; n++)
-	{
-		chBuforNadawczy[2*n+0] = 0xAA;
-		chBuforNadawczy[2*n+1] = 0x55;
-	}*/
-	chErr |= HAL_SUBGHZ_WriteBuffer(&hsubghz, ADR_BUF_NAD, chBuforNadawczy, ROZMIAR_BUFORA_NADAWCZEGO);	//zapełnij danymi
 
+	chErr |= HAL_SUBGHZ_WriteBuffer(&hsubghz, ADR_BUF_NAD, chBuforNadawczy, ROZMIAR_BUFORA_NADAWCZEGO);	//zapełnij danymi
 
 	//3. Select the packet type (generic or LoRa) with Set_PacketType().
 	chErr |= UstawTypPakietu(PAKIET_FSK);
@@ -304,8 +280,7 @@ uint8_t WyslijRamkeGFSK(void)
 	//b) On a timeout interrupt, the transmission is timeout.
 	sRozmiar = sprintf((char*)chBuforUart, "Wyslano ramke %d\r\n", chLicznikRamek++);
 	chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
-	HAL_Delay(500);
-	BSP_LED_Toggle(LED_BLUE);
+
 	//13. Clear interrupt with Clr_IrqStatus().
 	//chErr |= KasujPrzerwnie(IRQ_TX_DONE + IRQ_TIMEOUT + IRQ_SYNC_DET);
 	//14. Optionally, send a Set_Sleep() command to force the sub-GHz radio in Sleep mode.
@@ -486,8 +461,6 @@ uint8_t WyslijRamkeLoRa(void)
 	//b) On a timeout interrupt, the transmission is timeout.
 	sRozmiar = sprintf((char*)chBuforUart, "Wyslano ramke %d\r\n", chLicznikRamek++);
 	chErr |= HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
-	HAL_Delay(500);
-	BSP_LED_Toggle(LED_BLUE);
 	//13. Clear interrupt with Clr_IrqStatus().
 	//chErr |= KasujPrzerwnie(IRQ_TX_DONE + IRQ_TIMEOUT + IRQ_SYNC_DET);
 	//14. Optionally, send a Set_Sleep() command to force the sub-GHz radio in Sleep mode.

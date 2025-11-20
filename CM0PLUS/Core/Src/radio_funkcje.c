@@ -21,7 +21,7 @@ uint8_t chIloscOdebranychDanych;
 void HAL_SUBGHZ_TxCpltCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
 	chStanProtokolu = RP_WYSLANO;
-	BSP_LED_Toggle(LED_GREEN);
+	BSP_LED_On(LED_GREEN);
 	//KasujPrzerwnie(IRQ_TX_DONE);
 }
 
@@ -38,63 +38,62 @@ void HAL_SUBGHZ_RxCpltCallback(SUBGHZ_HandleTypeDef *hsubghz)
 	chErr |= PobierzStatusBufora(&chIloscOdebranychDanych, &chWskaznikDanych);
 	//chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, ADR_BUF_ODB, chBuforOdbiorczy, chIloscOdebranychDanych);	//odczytaj bufor*/
 	chStanProtokolu = RP_ODEBR_DANE;
-	BSP_LED_Toggle(LED_GREEN);
+	BSP_LED_On(LED_GREEN);
 	//KasujPrzerwnie(IRQ_RX_DONE);
 }
 
 void HAL_SUBGHZ_PreambleDetectedCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
 	chStanProtokolu = RP_ODEBR_PREAMB;
-	BSP_LED_Toggle(LED_GREEN);
+	BSP_LED_On(LED_GREEN);
 	//KasujPrzerwnie(IRQ_PREAMB_DET);
 }
 
 void HAL_SUBGHZ_SyncWordValidCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
 	chStanProtokolu = RP_ODEBR_SYNC;
-	BSP_LED_Toggle(LED_GREEN);
+	BSP_LED_On(LED_GREEN);
 	//KasujPrzerwnie(IRQ_SYNC_DET);
 }
 
 void HAL_SUBGHZ_HeaderValidCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
 	chStanProtokolu = RP_ODEBR_NAGL;
-	BSP_LED_Toggle(LED_GREEN);
+	BSP_LED_On(LED_GREEN);
 	//KasujPrzerwnie(IRQ_HEAD_VALID);
 }
 
 void HAL_SUBGHZ_HeaderErrorCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
 	chStanProtokolu = RP_BLAD_NAGL;
-	BSP_LED_Toggle(LED_RED);
+	BSP_LED_On(LED_RED);
 	//KasujPrzerwnie(IRQ_HEAD_ERROR);
 }
 
 void HAL_SUBGHZ_CRCErrorCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
 	chStanProtokolu = RP_BLAD_CRC;
-	BSP_LED_Toggle(LED_RED);
+	BSP_LED_On(LED_RED);
 	//KasujPrzerwnie(IRQ_CRC_ERROR);
 }
 
 void HAL_SUBGHZ_CADStatusCallback(SUBGHZ_HandleTypeDef *hsubghz, HAL_SUBGHZ_CadStatusTypeDef cadstatus)
 {
 	chStanProtokolu = RP_CAD;
-	BSP_LED_Toggle(LED_GREEN);
+	BSP_LED_On(LED_GREEN);
 	//KasujPrzerwnie(IRQ_CAD_DETECT);
 }
 
 void HAL_SUBGHZ_RxTxTimeoutCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
 	chStanProtokolu = RP_TIMEOUT;
-	BSP_LED_Toggle(LED_RED);
+	BSP_LED_On(LED_RED);
 	//KasujPrzerwnie(IRQ_TIMEOUT);
 }
 
 void HAL_SUBGHZ_LrFhssHopCallback(SUBGHZ_HandleTypeDef *hsubghz)
 {
 	chStanProtokolu = RP_HOP_LR_FHSS;
-	BSP_LED_Toggle(LED_GREEN);
 }
 
 /*(+) Set and execute a command in blocking mode using @ref HAL_SUBGHZ_ExecSetCmd()

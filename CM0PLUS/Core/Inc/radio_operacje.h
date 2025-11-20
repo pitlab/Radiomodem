@@ -12,7 +12,7 @@
 
 
 #define SYNC_WORD_LEN		4	//w bajtach
-#define PAYLOAD_GFSK_LEN	18
+#define PAYLOAD_GFSK_LEN	100
 
 uint8_t SkanujPasmo(void);
 uint8_t WlaczObiorGFSK(uint32_t nTimeout);
