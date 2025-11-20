@@ -153,7 +153,8 @@ uint8_t UstawMocNadajnika(uint8_t chMoc, uint8_t chCzasNarastania);
 uint8_t UstawParametryNadajnika(uint8_t chWypelnienieCyklu, uint8_t HpMax, uint8_t chZakresMocy);
 uint8_t UstawTrybFallbaclk(uint8_t chTryb);
 uint8_t UstawAdresyBuforow(uint8_t chBufNad, uint8_t chBudOdb);
-uint8_t PobierzStatusBufora(uint8_t *chStatus, uint8_t *chIloscOdebrana, uint8_t *chDane);
+//uint8_t PobierzStatusBufora(uint8_t *chStatus, uint8_t *chIloscOdebrana, uint8_t *chDane);
+uint8_t PobierzStatusBufora(uint8_t *chIloscOdebrana, uint8_t *chWskDane);
 uint8_t UstawParametryModulacjiFSK(uint32_t nPredkoscBit, uint8_t chKsztaltImpulsu, uint8_t chSzerokoscPasma, uint32_t nOdchylCzestotliwosci);
 uint8_t UstawParametryModulacjiLoRa(uint8_t chSpredingFactor, uint8_t chSzerokoscPasma, uint8_t chKorekcjaBledow, uint8_t chOptymalizacja);
 uint8_t PobierzStatusPakietu(uint8_t *chStatus, uint8_t *chStatusOdbioru, int8_t *chRSSISync, int8_t *chSrednRSSI);
@@ -166,12 +167,6 @@ uint8_t PobierzStatusPrzerwania(uint8_t *chStatus, uint16_t *sStatusIRQ);
 uint8_t UstawPrzerwnie(uint16_t sGlobalEnable, uint16_t sIRQ1En, uint16_t sIRQ2En, uint16_t sIRQ3En);
 uint8_t KasujPrzerwnie(uint16_t sPrzerwanie);
 
-uint8_t SkanujPasmo(void);
-uint8_t WlaczObiorGFSK(uint32_t nTimeout);
-uint8_t WyslijRamkeGFSK(void);
-uint8_t WyslijRamkeLoRa(void);
-uint8_t WlaczObiorLoRa(uint32_t nTimeout);
-uint8_t NadawajNosna(uint32_t nCzestotliwosc, uint32_t czas_ms);
-uint8_t NadawajPrembule(uint32_t nCzestotliwosc, uint32_t czas_ms);
+
 
 #endif /* INC_RADIO_WLASNE_H_ */
