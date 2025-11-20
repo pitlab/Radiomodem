@@ -103,9 +103,12 @@ uint8_t WlaczObiorGFSK(uint32_t nTimeout)
 	//uint8_t SyncWord[SYNC_WORD_LEN] = {0xC1, 0x94, 0xC1, 0xC1, 0xC1, 0xC1, 0xC1, 0xC1};
 
 
-	//zapełnij bufor odbiorczy wzorcem
+	//zapełnij bufory wzorcem
 	for (uint8_t n=0; n<ROZMIAR_BUFORA_ODBIORCZEGO; n++)
-		chBuforNadawczy[n] = 0x00;
+	{
+		chBuforNadawczy[n] = 0x11;
+		chBuforOdbiorczy[n] = 0x22;
+	}
 	chErr |= HAL_SUBGHZ_WriteBuffer(&hsubghz, ADR_BUF_ODB, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);	//zapełnij danymi
 
 	BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_RX);
@@ -114,6 +117,7 @@ uint8_t WlaczObiorGFSK(uint32_t nTimeout)
 	//The sub-GHz radio can be set in LoRa or (G)FSK receive operation mode with the following steps:
 	//1. Define the location where the received payload data must be stored in the data buffer, with Set_BufferBaseAddress().
 	chErr = UstawAdresyBuforow(ADR_BUF_NAD, ADR_BUF_ODB);	//(Tx, Rx)
+	//chErr = UstawAdresyBuforow(ADR_BUF_ODB, ADR_BUF_NAD);	//(Rx, Tx)
 
 	//2. Select the packet type (generic or LoRa) with Set_PacketType().
 	chErr = UstawTypPakietu(PAKIET_FSK);
@@ -170,7 +174,10 @@ uint8_t WlaczObiorGFSK(uint32_t nTimeout)
 
 			//– Read the received payload data from the receive data buffer with Read_Buffer().
 			sRozmiar = sprintf((char*)chBuforUart, "Odebrano: [%d] status: [%.2X] Blad: [%.2X]:", chIloscOdebrana, chStatus, chBlad);
-			chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, ADR_BUF_ODB, chBuforOdbiorczy, chIloscOdebrana);	//odczytaj bufor
+			chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, ADR_BUF_ODB, chBuforOdbiorczy, ROZMIAR_BUFORA_ODBIORCZEGO);	//odczytaj bufor
+			chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, ADR_BUF_NAD, chBuforNadawczy, ROZMIAR_BUFORA_NADAWCZEGO);	//odczytaj bufor
+
+			chErr |= HAL_SUBGHZ_ReadBuffer(&hsubghz, ADR_BUF_ODB, chBuforOdbiorczy + chWskaznikDanych, chIloscOdebrana);	//odczytaj bufor
 			for (uint8_t n=0; n<chIloscOdebrana; n++)
 			{
 				sRozmiar2 = sprintf((char*)chBuforUart + sRozmiar, " %.2X,", chBuforOdbiorczy[chWskaznikDanych + n]);
@@ -251,7 +258,7 @@ uint8_t WyslijRamkeGFSK(void)
 
 	//2. Write the payload data to the transmit data buffer with Write_Buffer().
 	for (uint8_t n=0; n<ROZMIAR_BUFORA_NADAWCZEGO; n++)
-		chBuforNadawczy[n] = 0x00;
+		chBuforNadawczy[n] = n;
 	/*for (uint8_t n=0; n<ROZMIAR_BUFORA_NADAWCZEGO / 2; n++)
 	{
 		chBuforNadawczy[2*n+0] = 0xAA;

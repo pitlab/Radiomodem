@@ -99,7 +99,7 @@ int main(void)
   uint32_t nTxco = BSP_RADIO_IsTCXO ();
   if (nTxco == 1)
   {
-	  uint16_t sRozmiar = sprintf((char*)chBuforUart, "TXCO wspierane 2\r\n");
+	  uint16_t sRozmiar = sprintf((char*)chBuforUart, "TXCO wspierane 4\r\n");
 	  HAL_UART_Transmit(&huart1,  chBuforUart, sRozmiar, 10);
   }
   /* USER CODE END 2 */
