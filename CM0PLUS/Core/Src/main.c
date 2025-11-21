@@ -17,12 +17,12 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include <radio_operacje.h>
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stm32wlxx_nucleo_radio.h"
+#include <radio_operacje.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,7 +45,11 @@
 COM_InitTypeDef BspCOMInit;
 static uint32_t delay = 250;
 
+RNG_HandleTypeDef hrng;
+
 SUBGHZ_HandleTypeDef hsubghz;
+
+TIM_HandleTypeDef htim17;
 
 UART_HandleTypeDef huart1;
 
@@ -59,6 +63,8 @@ uint8_t chBlad;
 static void MX_GPIO_Init(void);
 static void MX_SUBGHZ_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_TIM17_Init(void);
+static void MX_RNG_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -96,8 +102,11 @@ int main(void)
   MX_GPIO_Init();
   MX_SUBGHZ_Init();
   MX_USART1_UART_Init();
+  MX_TIM17_Init();
+  MX_RNG_Init();
   /* USER CODE BEGIN 2 */
   BSP_RADIO_Init();
+  HAL_SUBGHZ_MspInit(&hsubghz);
   uint32_t nTxco = BSP_RADIO_IsTCXO ();
   if (nTxco == 1)
   {
@@ -106,7 +115,8 @@ int main(void)
 	  sRozmiar = delay;	//zablokuj warning nieużywanej zmiennej
   }
 
-  nLosoweOpoznienie = 10;		//Docelowo użyć sprzętowego generatora liczb losowych
+  chBlad = HAL_RNG_GenerateRandomNumber(&hrng, &nLosoweOpoznienie);
+  nLosoweOpoznienie &= 0xFFF;	//ogranicz rozmiar zmiennej -> ogranicz czas
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -115,7 +125,8 @@ int main(void)
   while (1)
   {
 	  //Czekaj sekundę na odbiór
-	  chBlad = WlaczObiorGFSK(1000000);	//timeout [us] = 1s
+	  chBlad = WlaczObiorGFSK(TIMEOUT_ODBIORNIKA);	//timeout [us] = 1s
+	  //chBlad = WlaczObiorLoRa(TIMEOUT_ODB_LORA);
 	  //LEDy są włączane w callbackach
 	  BSP_LED_Off(LED_RED);
 	  BSP_LED_Off(LED_GREEN);
@@ -123,6 +134,8 @@ int main(void)
 	  //wyślij dane
 	  BSP_LED_On(LED_BLUE);
 	  WyslijRamkeGFSK();
+	  //WyslijRamkeLoRa();
+	  //NadawajPrembule(FREQ_GFSK, 100);
 	  BSP_LED_Off(LED_BLUE);
 
     /* USER CODE END WHILE */
@@ -137,9 +150,36 @@ int main(void)
 	  //WyslijRamkeLoRa();
 
 	  //NadawajNosna(FREQ_LORA, 500);
-	  //NadawajPrembule(FREQ_LORA, 100);
+
   }
   /* USER CODE END 3 */
+}
+
+/**
+  * @brief RNG Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_RNG_Init(void)
+{
+
+  /* USER CODE BEGIN RNG_Init 0 */
+
+  /* USER CODE END RNG_Init 0 */
+
+  /* USER CODE BEGIN RNG_Init 1 */
+
+  /* USER CODE END RNG_Init 1 */
+  hrng.Instance = RNG;
+  hrng.Init.ClockErrorDetection = RNG_CED_ENABLE;
+  if (HAL_RNG_Init(&hrng) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN RNG_Init 2 */
+
+  /* USER CODE END RNG_Init 2 */
+
 }
 
 /**
@@ -165,6 +205,41 @@ static void MX_SUBGHZ_Init(void)
   /* USER CODE BEGIN SUBGHZ_Init 2 */
 
   /* USER CODE END SUBGHZ_Init 2 */
+
+}
+
+/**
+  * @brief TIM17 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM17_Init(void)
+{
+
+  /* USER CODE BEGIN TIM17_Init 0 */
+
+  /* USER CODE END TIM17_Init 0 */
+
+  /* USER CODE BEGIN TIM17_Init 1 */
+
+  /* USER CODE END TIM17_Init 1 */
+  htim17.Instance = TIM17;
+  htim17.Init.Prescaler = 48;
+  htim17.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim17.Init.Period = 65535;
+  htim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim17.Init.RepetitionCounter = 0;
+  htim17.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim17) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM17_Init 2 */
+  	  if ( HAL_TIM_Base_Start_IT(&htim17) != HAL_OK)
+  	  {
+  		  Error_Handler();
+  	  }
+  /* USER CODE END TIM17_Init 2 */
 
 }
 
@@ -223,12 +298,24 @@ static void MX_USART1_UART_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
 
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(Test_GPIO_Port, Test_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : Test_Pin */
+  GPIO_InitStruct.Pin = Test_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(Test_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -248,6 +335,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
+  BSP_LED_On(LED_RED);
   while (1)
   {
   }

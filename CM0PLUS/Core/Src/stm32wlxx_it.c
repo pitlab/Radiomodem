@@ -42,7 +42,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-
+volatile uint16_t sCzasH;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -56,7 +56,9 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
+extern RNG_HandleTypeDef hrng;
 extern SUBGHZ_HandleTypeDef hsubghz;
+extern TIM_HandleTypeDef htim17;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -142,10 +144,40 @@ void SysTick_Handler(void)
 /******************************************************************************/
 
 /**
+  * @brief This function handles TIM17 Global Interrupt.
+  */
+void TIM17_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM17_IRQn 0 */
+
+  /* USER CODE END TIM17_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim17);
+  /* USER CODE BEGIN TIM17_IRQn 1 */
+  sCzasH++;
+  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_15);
+  /* USER CODE END TIM17_IRQn 1 */
+}
+
+/**
+  * @brief This function handles RNG Interrupt.
+  */
+void RNG_IRQHandler(void)
+{
+  /* USER CODE BEGIN RNG_IRQn 0 */
+
+  /* USER CODE END RNG_IRQn 0 */
+  HAL_RNG_IRQHandler(&hrng);
+  /* USER CODE BEGIN RNG_IRQn 1 */
+
+  /* USER CODE END RNG_IRQn 1 */
+}
+
+/**
   * @brief This function handles SUBGHZ Radio Interrupt.
   */
 void SUBGHZ_Radio_IRQHandler(void)
 {
+  /* USER CODE BEGIN SUBGHZ_Radio_IRQn 0 */
 	//uint16_t sStatusPrzerwania = 0;
 	//uint8_t chStatus, chErr = 0;
 

@@ -96,9 +96,29 @@
 			<locationURI>PARENT-1-PROJECT_LOC/Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal_rcc_ex.c</locationURI>
 		</link>
 		<link>
+			<name>Drivers/STM32WLxx_HAL_Driver/stm32wlxx_hal_rng.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal_rng.c</locationURI>
+		</link>
+		<link>
+			<name>Drivers/STM32WLxx_HAL_Driver/stm32wlxx_hal_rng_ex.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal_rng_ex.c</locationURI>
+		</link>
+		<link>
 			<name>Drivers/STM32WLxx_HAL_Driver/stm32wlxx_hal_subghz.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal_subghz.c</locationURI>
+		</link>
+		<link>
+			<name>Drivers/STM32WLxx_HAL_Driver/stm32wlxx_hal_tim.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal_tim.c</locationURI>
+		</link>
+		<link>
+			<name>Drivers/STM32WLxx_HAL_Driver/stm32wlxx_hal_tim_ex.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal_tim_ex.c</locationURI>
 		</link>
 		<link>
 			<name>Drivers/STM32WLxx_HAL_Driver/stm32wlxx_hal_uart.c</name>

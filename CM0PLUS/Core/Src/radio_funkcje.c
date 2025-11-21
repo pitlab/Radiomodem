@@ -280,9 +280,13 @@ uint8_t ZmierzRSSI(uint8_t* chStatus, int8_t* chRSSI)
 //////////////////////////////////////////////////////////////////////////////////
 uint8_t UstawTypPakietu(uint8_t chTypPakietu)
 {
+	HAL_StatusTypeDef chErr;
 	uint8_t chBuforDanych = chTypPakietu & 0x03;
 
-	return HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_PACKETTYPE, &chBuforDanych, 1);
+	chErr = HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_SET_PACKETTYPE, &chBuforDanych, 1);
+	//chBuforDanych = 0x55;
+	//chErr = HAL_SUBGHZ_ExecGetCmd(&hsubghz, RADIO_GET_PACKETTYPE, &chBuforDanych, 1);
+	return chErr;
 }
 
 
@@ -415,16 +419,11 @@ uint8_t PobierzStatusBufora(uint8_t *chIloscOdebrana, uint8_t *chWskDane)
 //////////////////////////////////////////////////////////////////////////////////
 uint8_t PobierzStatusPrzerwania(uint8_t *chStatus, uint16_t *sStatusIRQ)
 {
-	uint8_t chErr, chBuforDanych[4] = {0, 0, 0, 0};
+	uint8_t chErr, chBuforDanych[2] = {0, 0};
 
-	//chErr = HAL_SUBGHZ_ExecGetCmd(&hsubghz, RADIO_GET_IRQSTATUS, chBuforDanych, 3);
 	chErr = HAL_SUBGHZ_ExecGetCmd(&hsubghz, RADIO_GET_IRQSTATUS, chBuforDanych, 2);
 	if (chErr == ERR_OK)
-	{
-		//*chStatus = chBuforDanych[0];
-		//*sStatusIRQ = chBuforDanych[2] + (uint16_t)chBuforDanych[1] * 0x100;
 		*sStatusIRQ = chBuforDanych[1] + (uint16_t)chBuforDanych[2] * 0x100;
-	}
 	return chErr;
 }
 
@@ -676,7 +675,7 @@ uint8_t UstawParametryPakietowLoRa(uint16_t sDlugPreamb, uint8_t chStalyNagl, ui
 
 
 //////////////////////////////////////////////////////////////////////////////////
-// Ustawia parametry pakietów
+// Ustawia maski przerwań dla poszczególnych callbacków
 // Parametry: na razie nic
 // Zwraca: kod błędu
 //////////////////////////////////////////////////////////////////////////////////
@@ -708,12 +707,10 @@ uint8_t UstawPrzerwnie(uint16_t sGlobalEnable, uint16_t sIRQ1En, uint16_t sIRQ2E
 //////////////////////////////////////////////////////////////////////////////////
 uint8_t KasujPrzerwnie(uint16_t sPrzerwanie)
 {
-	uint8_t chKonfig[8] = {0};
+	uint8_t chBuforDanych[2] = {0, 0};
 
-	chKonfig[0] = sPrzerwanie;
-	chKonfig[1] = (sPrzerwanie >> 8);
-	return HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_CFG_DIOIRQ, chKonfig, 2);
+	chBuforDanych[0] = (sPrzerwanie >> 8) & 0xFF;
+	chBuforDanych[1] = (sPrzerwanie) & 0xFF;
+	return HAL_SUBGHZ_ExecSetCmd(&hsubghz, RADIO_CLR_IRQSTATUS, chBuforDanych, 2);
 }
-
-
 

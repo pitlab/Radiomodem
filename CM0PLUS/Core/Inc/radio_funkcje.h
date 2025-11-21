@@ -34,8 +34,8 @@
 #define FALLBACK_STDBY_HSE	0x30
 #define FALLBACK_FS			0x40
 
-#define ROZMIAR_BUFORA_NADAWCZEGO	128
-#define ROZMIAR_BUFORA_ODBIORCZEGO	128
+#define ROZMIAR_BUFORA_NADAWCZEGO	255
+#define ROZMIAR_BUFORA_ODBIORCZEGO	255
 #define ADR_BUF_ODB		0x00
 #define ADR_BUF_NAD		0x80
 
@@ -166,6 +166,7 @@ uint8_t PobierzStatus(uint8_t *chStatus);
 uint8_t PobierzStatusPrzerwania(uint8_t *chStatus, uint16_t *sStatusIRQ);
 uint8_t UstawPrzerwnie(uint16_t sGlobalEnable, uint16_t sIRQ1En, uint16_t sIRQ2En, uint16_t sIRQ3En);
 uint8_t KasujPrzerwnie(uint16_t sPrzerwanie);
+
 
 
 
